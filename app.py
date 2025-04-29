@@ -42,8 +42,9 @@ with st.sidebar:
 
 st.markdown("""
 <style>
-    .chat-message {
-        margin-bottom: 20px;  /* 원하는 간격 크기로 조정 */
+    .chat_message {
+        padding-top: 1px !important;    /* 상단 여백 */
+        padding-bottom: 1px !important; /* 하단 여백 */
     }
 </style>
 """, unsafe_allow_html=True)
