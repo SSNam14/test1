@@ -44,7 +44,7 @@ with st.sidebar:
     # Anthropic API 키 설정
     # 보안을 위해 .streamlit/secrets.toml 파일이나 환경 변수에서 가져오는 것이 좋습니다
     if 'ANTHROPIC_API_KEY' in st.secrets:
-        api_key = st.secrets['ANTHROPIC_API_KEY']
+        api_key = st.secrets['apikey']
     else:
         api_key = st.text_input("Anthropic API 키를 입력하세요:", type="password", key="api_key_input")
         if not api_key:
