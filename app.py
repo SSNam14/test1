@@ -101,7 +101,7 @@ if prompt:
                     max_tokens=1024,
                     messages=messages,
                     temperature=temperature,
-                    system=system_prompt if system_prompt else None,
+                    system=system_prompt,
                     stream=False  # 스트리밍 비활성화
                 )
     
