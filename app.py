@@ -87,9 +87,6 @@ if prompt:
     
     # 응답 생성
     with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        full_response = ""
-        
         # 메시지 기록 준비
         messages = [
             {"role": m["role"], "content": m["content"]}
@@ -98,7 +95,7 @@ if prompt:
         
         try:
             # API 호출
-            #with st.spinner("Claude가 생각 중..."):
+            with st.spinner("Claude가 생각 중..."):
             #    response = client.messages.create(
             #        model=model,  # 사이드바에서 선택한 모델 사용
             #        max_tokens=1000,
@@ -106,33 +103,32 @@ if prompt:
             #        temperature=temperature,)  # 사이드바에서 설정한 temperature 사용
             #    full_response = response.content[0].text
             #    message_placeholder.markdown(full_response)
-            # 어시스턴트 응답 저장
-            #st.session_state.messages.append({"role": "assistant", "content": full_response})
-            with st.spinner("Claude가 생각 중..."):
-                stream_response = client.messages.create(
-                    model=model,
-                    max_tokens=1000,
-                    messages=messages,
-                    temperature=temperature,
-                    system=system_prompt,
-                    stream=True  # 스트리밍 활성화
-                )
-                # 응답을 저장할 변수
-                full_response = ""
+
+            message_placeholder = st.empty()
+            full_response = ""
+            stream_response = client.messages.create(
+                model=model,
+                max_tokens=1000,
+                messages=messages,
+                temperature=temperature,
+                system=system_prompt,
+                stream=True
+            )
             
-                # 스트리밍 응답 처리
-                message_placeholder = st.empty()
+            # st.write_stream을 사용하여 스트리밍 처리
+            def stream_generator():
                 for chunk in stream_response:
                     if chunk.type == "content_block_delta" and hasattr(chunk, "delta") and hasattr(chunk.delta, "text"):
                         content_delta = chunk.delta.text
+                        nonlocal full_response
                         full_response += content_delta
-                        message_placeholder.markdown(full_response + "▌")
-            
-                # 최종 응답 표시
-                message_placeholder.markdown(full_response)
-            
+                        yield full_response
+    
+            # 스트리밍 출력
+            for response in st.write_stream(stream_generator()):
+                message_placeholder.markdown(response)            
+             
             # 어시스턴트 응답 저장
             st.session_state.messages.append({"role": "assistant", "content": full_response})
-            
         except Exception as e:
             st.error(f"오류가 발생했습니다: {str(e)}")
