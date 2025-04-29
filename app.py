@@ -33,6 +33,17 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+def claude_stream_generator(response_stream):
+    """Claude API의 스트리밍 응답을 텍스트 제너레이터로 변환합니다."""
+    for chunk in response_stream:
+        if hasattr(chunk, 'type'):
+            # content_block_delta 이벤트 처리
+            if chunk.type == 'content_block_delta' and hasattr(chunk, 'delta') and hasattr(chunk.delta, 'text'):
+                yield chunk.delta.text
+            # content_block_start 이벤트 처리
+            elif chunk.type == 'content_block_start' and hasattr(chunk, 'content_block') and hasattr(chunk.content_block, 'text'):
+                yield chunk.content_block.text
+
 # 세션 상태 초기화
 if 'messages' not in st.session_state:
     st.session_state.messages = []
@@ -102,16 +113,15 @@ if prompt:
                     messages=messages,
                     temperature=temperature,
                     system=system_prompt,
-                    stream=False  # 스트리밍 비활성화
+                    stream=True  # 스트리밍 비활성화
                 )
     
                 # 응답 표시
-                response_text = response.content[0].text
-                st.markdown(response_text, unsafe_allow_html=True)
-    
+                full_response = st.write_stream(claude_stream_generator(response))
+                
                 # 메시지 기록에 추가
-                st.session_state.messages.append({"role": "assistant", "content": response_text})
-                st.rerun()  # 페이지 리로드
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
                
         except Exception as e:
             st.error(f"오류가 발생했습니다: {str(e)}")
+    #st.rerun()  # 페이지 리로드
