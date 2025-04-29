@@ -6,7 +6,33 @@ import os
 # 페이지 설정
 st.set_page_config(page_title="Claude 챗봇", page_icon="🤖")
 st.title("Claude 챗봇")
- 
+
+st.markdown("""
+<style>
+    /* 채팅 메시지 컨테이너 간격 줄이기 */
+    .stChatMessage {
+        padding-top: 5px !important;
+        padding-bottom: 5px !important;
+        margin-top: 5px !important;
+        margin-bottom: 5px !important;
+    }
+
+    /* 메시지 내용 간격 줄이기 */
+    .stChatMessage > div {
+        padding-top: 5px !important;
+        padding-bottom: 5px !important;
+    }
+
+    /* 메시지 안의 마크다운 간격 줄이기 */
+    .stMarkdown {
+        padding-top: 0px !important;
+        padding-bottom: 0px !important;
+        margin-top: 0px !important;
+        margin-bottom: 0px !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # 세션 상태 초기화
 if 'messages' not in st.session_state:
     st.session_state.messages = []
@@ -39,15 +65,6 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("Anthropic Claude API를 사용한 챗봇입니다.")
-
-st.markdown("""
-<style>
-    .chat_message {
-        padding-top: 1px !important;    /* 상단 여백 */
-        padding-bottom: 1px !important; /* 하단 여백 */
-    }
-</style>
-""", unsafe_allow_html=True)
 
 # 이전 메시지 표시
 for message in st.session_state.messages:
