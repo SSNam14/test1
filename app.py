@@ -102,23 +102,25 @@ if prompt:
                     messages=messages,
                     temperature=temperature,
                     system=system_prompt if system_prompt else None,
-                    stream=True)
+                    stream=True
+                )
             
-            def stream_generator():
-                full_response = ""
-                for chunk in stream_response:
-                    if chunk.type == "content_block_delta" and hasattr(chunk, "delta") and hasattr(chunk.delta, "text"):
-                        content_delta = chunk.delta.text
-                        full_response += content_delta
-                        yield full_response
+                full_response = ""  # 응답을 저장할 변수를 외부에 선언
             
-            response_container = st.empty()
-            for response in st.write_stream(stream_generator()):
-                response_container.markdown(response, unsafe_allow_html=True)
+                def stream_generator():
+                    nonlocal full_response  # 외부 변수 참조
+                    for chunk in stream_response:
+                        if chunk.type == "content_block_delta" and hasattr(chunk, "delta") and hasattr(chunk.delta, "text"):
+                            content_delta = chunk.delta.text
+                            full_response += content_delta
+                            yield full_response
             
-            # 마지막 응답 저장 (stream_generator 내부에서 만들어진 full_response에 접근할 수 없으므로)
-            full_response = response_container.markdown()
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
+                response_container = st.empty()
+                for response in st.write_stream(stream_generator()):
+                    response_container.markdown(response, unsafe_allow_html=True)
+            
+                # 이제 full_response 변수에 전체 응답이 저장되어 있음
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
                
         except Exception as e:
             st.error(f"오류가 발생했습니다: {str(e)}")
