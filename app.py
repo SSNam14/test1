@@ -7,7 +7,11 @@ import os
 st.set_page_config(page_title="Claude 챗봇", page_icon="🤖")
 st.title("Claude 챗봇")
  
-# 사이드바에 API 키 입력 필드 추가
+# 세션 상태 초기화
+if 'messages' not in st.session_state:
+    st.session_state.messages = []
+ 
+# 사이드바에 API 키 입력 필드와 모델 설정 추가
 with st.sidebar:
     st.header("API 설정")
     
@@ -20,10 +24,21 @@ with st.sidebar:
         if not api_key:
             st.warning("API 키를 입력해주세요!")
             st.stop()
- 
-# 세션 상태 초기화
-if 'messages' not in st.session_state:
-    st.session_state.messages = []
+    
+    st.header("모델 설정")
+    model = st.selectbox(
+        "모델 선택",
+        ["claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20240620", "claude-3-opus-20240229"]
+    )
+    
+    temperature = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7, step=0.1)
+    
+    if st.button("대화 초기화"):
+        st.session_state.messages = []
+        st.experimental_rerun()
+    
+    st.markdown("---")
+    st.markdown("Anthropic Claude API를 사용한 챗봇입니다.")
  
 # 이전 메시지 표시
 for message in st.session_state.messages:
@@ -71,20 +86,3 @@ if prompt:
             
         except Exception as e:
             st.error(f"오류가 발생했습니다: {str(e)}")
- 
-# 사이드바에 모델 설정 옵션 추가
-with st.sidebar:
-    st.header("모델 설정")
-    model = st.selectbox(
-        "모델 선택",
-        ["claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20240620", "claude-3-opus-20240229"]
-    )
-    
-    temperature = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7, step=0.1)
-    
-    if st.button("대화 초기화"):
-        st.session_state.messages = []
-        st.experimental_rerun()
-    
-    st.markdown("---")
-    st.markdown("Anthropic Claude API를 사용한 챗봇입니다.")
