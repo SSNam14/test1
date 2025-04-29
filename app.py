@@ -108,7 +108,7 @@ if prompt:
                 full_response = ""  # 응답을 저장할 변수를 외부에 선언
             
                 def stream_generator():
-                    nonlocal full_response  # 외부 변수 참조
+                    global full_response  # 외부 변수 참조
                     for chunk in stream_response:
                         if chunk.type == "content_block_delta" and hasattr(chunk, "delta") and hasattr(chunk.delta, "text"):
                             content_delta = chunk.delta.text
