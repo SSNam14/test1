@@ -111,7 +111,7 @@ if prompt:
     
                 # 메시지 기록에 추가
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
-
+                st.experimental_rerun()  # 페이지 리로드
                
         except Exception as e:
             st.error(f"오류가 발생했습니다: {str(e)}")
