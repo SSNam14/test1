@@ -39,11 +39,19 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("Anthropic Claude API를 사용한 챗봇입니다.")
- 
+
+st.markdown("""
+<style>
+    .chat-message {
+        margin-bottom: 20px;  /* 원하는 간격 크기로 조정 */
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # 이전 메시지 표시
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+        st.markdown(message["content"], unsafe_allow_html=True)
  
 # 사용자 입력 받기
 prompt = st.chat_input("무엇이든 물어보세요!")
@@ -52,7 +60,7 @@ if prompt:
     # 사용자 메시지 추가
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
-        st.markdown(prompt)
+        st.markdown(prompt, unsafe_allow_html=True)
     
     # Anthropic 클라이언트 생성
     client = Anthropic(api_key=api_key)
