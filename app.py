@@ -96,22 +96,29 @@ if prompt:
         try:
             # API 호출
             with st.spinner("Claude가 생각 중..."):
-                # API 호출 (Non-streaming)
-                response = client.messages.create(
+                stream_response = client.messages.create(
                     model=model,
-                    max_tokens=1024, # 토큰 수 조정 가능
+                    max_tokens=1024,
                     messages=messages,
                     temperature=temperature,
-                    system=system_prompt if system_prompt else None, # 시스템 프롬프트가 있을 때만 전달
-                )
-
-                # 응답 텍스트 추출
-                full_response = response.content[0].text
-
-                # 응답 표시
-                st.markdown(full_response, unsafe_allow_html=True)
-
-                # 어시스턴트 응답 저장
-                st.session_state.messages.append({"role": "assistant", "content": full_response})
+                    system=system_prompt if system_prompt else None,
+                    stream=True)
+            
+            def stream_generator():
+                full_response = ""
+                for chunk in stream_response:
+                    if chunk.type == "content_block_delta" and hasattr(chunk, "delta") and hasattr(chunk.delta, "text"):
+                        content_delta = chunk.delta.text
+                        full_response += content_delta
+                        yield full_response
+            
+            response_container = st.empty()
+            for response in st.write_stream(stream_generator()):
+                response_container.markdown(response, unsafe_allow_html=True)
+            
+            # 마지막 응답 저장 (stream_generator 내부에서 만들어진 full_response에 접근할 수 없으므로)
+            full_response = response_container.markdown()
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
+               
         except Exception as e:
             st.error(f"오류가 발생했습니다: {str(e)}")
