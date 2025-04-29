@@ -63,7 +63,7 @@ with st.sidebar:
     
     if st.button("대화 초기화"):
         st.session_state.messages = []
-        st.experimental_rerun()
+        st.rerun()
     
     st.markdown("---")
     st.markdown("Anthropic Claude API를 사용한 챗봇입니다.")
