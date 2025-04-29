@@ -4,8 +4,8 @@ from anthropic import Anthropic
 import os
  
 # 페이지 설정
-st.set_page_config(page_title="Claude 챗봇", page_icon="🤖")
-st.title("Claude 챗봇")
+st.set_page_config(page_title="Claude", page_icon="🤖")
+st.title("Claude")
 
 st.markdown("""
 <style>
@@ -53,7 +53,6 @@ with st.sidebar:
     st.header("API 설정")
     
     # Anthropic API 키 설정
-    # 보안을 위해 .streamlit/secrets.toml 파일이나 환경 변수에서 가져오는 것이 좋습니다
     if 'ANTHROPIC_API_KEY' in st.secrets:
         api_key = st.secrets['ANTHROPIC_API_KEY']
     else:
@@ -113,7 +112,7 @@ if prompt:
                     messages=messages,
                     temperature=temperature,
                     system=system_prompt,
-                    stream=True  # 스트리밍 비활성화
+                    stream=True
                 )
     
                 # 응답 표시
@@ -124,4 +123,4 @@ if prompt:
                
         except Exception as e:
             st.error(f"오류가 발생했습니다: {str(e)}")
-    #st.rerun()  # 페이지 리로드
+    #st.rerun()
