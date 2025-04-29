@@ -58,6 +58,8 @@ with st.sidebar:
     )
     
     temperature = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7, step=0.1)
+
+    system_prompt = st.text_area("시스템 프롬프트", "")
     
     if st.button("대화 초기화"):
         st.session_state.messages = []
@@ -96,17 +98,39 @@ if prompt:
         
         try:
             # API 호출
+            #with st.spinner("Claude가 생각 중..."):
+            #    response = client.messages.create(
+            #        model=model,  # 사이드바에서 선택한 모델 사용
+            #        max_tokens=1000,
+            #        messages=messages,
+            #        temperature=temperature,)  # 사이드바에서 설정한 temperature 사용
+            #    full_response = response.content[0].text
+            #    message_placeholder.markdown(full_response)
+            # 어시스턴트 응답 저장
+            #st.session_state.messages.append({"role": "assistant", "content": full_response})
             with st.spinner("Claude가 생각 중..."):
-                response = client.messages.create(
-                    model=model,  # 사이드바에서 선택한 모델 사용
+                stream_response = client.messages.create(
+                    model=model,
                     max_tokens=1000,
                     messages=messages,
-                    temperature=temperature,  # 사이드바에서 설정한 temperature 사용
+                    temperature=temperature,
+                    system=system_prompt,
+                    stream=True  # 스트리밍 활성화
                 )
-                
-                full_response = response.content[0].text
+                # 응답을 저장할 변수
+                full_response = ""
+            
+                # 스트리밍 응답 처리
+                message_placeholder = st.empty()
+                for chunk in stream_response:
+                    if chunk.type == "content_block_delta" and hasattr(chunk, "delta") and hasattr(chunk.delta, "text"):
+                        content_delta = chunk.delta.text
+                        full_response += content_delta
+                        message_placeholder.markdown(full_response + "▌")
+            
+                # 최종 응답 표시
                 message_placeholder.markdown(full_response)
-                
+            
             # 어시스턴트 응답 저장
             st.session_state.messages.append({"role": "assistant", "content": full_response})
             
