@@ -100,7 +100,7 @@ if prompt:
                 response = client.messages.create(
                     model=model,
                     max_tokens=1024, # 토큰 수 조정 가능
-                    messages=messages_for_api,
+                    messages=messages,
                     temperature=temperature,
                     system=system_prompt if system_prompt else None, # 시스템 프롬프트가 있을 때만 전달
                 )
