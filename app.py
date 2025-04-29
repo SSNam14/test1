@@ -11,16 +11,16 @@ st.markdown("""
 <style>
     /* 채팅 메시지 컨테이너 간격 줄이기 */
     .stChatMessage {
-        padding-top: 5px !important;
-        padding-bottom: 5px !important;
-        margin-top: 5px !important;
-        margin-bottom: 5px !important;
+        padding-top: 2px !important;
+        padding-bottom: 2px !important;
+        margin-top: 2px !important;
+        margin-bottom: 2px !important;
     }
 
     /* 메시지 내용 간격 줄이기 */
     .stChatMessage > div {
-        padding-top: 5px !important;
-        padding-bottom: 5px !important;
+        padding-top: 2px !important;
+        padding-bottom: 2px !important;
     }
 
     /* 메시지 안의 마크다운 간격 줄이기 */
