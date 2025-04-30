@@ -106,6 +106,8 @@ if prompt:
         try:
             # API 호출
             with st.spinner("Claude가 생각 중..."):
+                st.markdown(system_prompt)
+                st.session_state.messages.append({"role": "user", "content": system_prompt})             
                 response = client.messages.create(
                     model=model,
                     max_tokens=1024,
@@ -116,8 +118,6 @@ if prompt:
                 )
     
                 # 응답 표시
-                st.markdown(system_prompt)
-                st.session_state.messages.append({"role": "user", "content": system_prompt})
                 full_response = st.write_stream(claude_stream_generator(response))
                 
                 # 메시지 기록에 추가
