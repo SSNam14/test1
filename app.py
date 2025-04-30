@@ -117,6 +117,8 @@ if prompt:
     
                 # 응답 표시
                 full_response = st.write_stream(claude_stream_generator(response))
+                st.markdown(type(full_response))
+             
                 
                 # 메시지 기록에 추가
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
