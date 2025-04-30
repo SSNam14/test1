@@ -116,6 +116,8 @@ if prompt:
                 )
     
                 # 응답 표시
+                st.markdown(system_prompt)
+                st.session_state.messages.append({"role": "user", "content": system_prompt})
                 full_response = st.write_stream(claude_stream_generator(response))
                 
                 # 메시지 기록에 추가
