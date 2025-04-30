@@ -122,6 +122,7 @@ if prompt:
                 
                 # 메시지 기록에 추가
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
+                st.session_state.messages.append({"role": "assistant", "content": str(type(full_response)})
                
         except Exception as e:
             st.error(f"오류가 발생했습니다: {str(e)}")
