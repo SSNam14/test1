@@ -106,8 +106,6 @@ if prompt:
         try:
             # API 호출
             with st.spinner("Claude가 생각 중..."):
-                st.markdown(system_prompt)
-                st.session_state.messages.append({"role": "user", "content": system_prompt})             
                 response = client.messages.create(
                     model=model,
                     max_tokens=1024,
