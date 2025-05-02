@@ -67,7 +67,7 @@ if 'generating_response' not in st.session_state:
 # 새 메시지 추가 확인 플래그
 if 'new_message_added' not in st.session_state:
     st.session_state.new_message_added = False
- 
+    
 # 사이드바에 API 키 입력 필드와 모델 설정 추가
 with st.sidebar:
     st.header("API 설정")
@@ -88,6 +88,8 @@ with st.sidebar:
     )
     
     temperature = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7, step=0.1)
+    
+    max_tokens = st.slider("max_tokens", min_value=1, max_value=4096, value=1024, step=1)
 
     system_prompt = st.text_area("시스템 프롬프트", "간결하게")
     
@@ -149,8 +151,8 @@ for i, message in enumerate(st.session_state.messages):
         else:
             # 어시스턴트 메시지는 편집 불가
             st.markdown(message["content"], unsafe_allow_html=True)
- 
-# 응답 생성 함수 - 중복을 방지하기 위해 함수로 분리
+
+#응답 생성 함수 - 중복을 방지하기 위해 함수로 분리
 def generate_claude_response():
     # 메시지 기록 준비
     messages = [
@@ -172,7 +174,7 @@ def generate_claude_response():
                 
                 response = client.messages.create(
                     model=model,
-                    max_tokens=1024,
+                    max_tokens=max_tokens,
                     messages=messages,
                     temperature=temperature,
                     system=system_prompt,
