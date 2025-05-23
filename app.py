@@ -84,7 +84,7 @@ with st.sidebar:
     st.header("모델 설정")
     model = st.selectbox(
         "모델 선택",
-        ["claude-3-opus-20240229", "claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20240620", ]
+        ["claude-sonnet-4-20250514", "claude-3-7-sonnet-20250219", "claude-opus-4-20250514", "claude-3-opus-20240229", ]
     )
     
     temperature = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7, step=0.1)
