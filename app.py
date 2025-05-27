@@ -79,11 +79,6 @@ def load_conversation_from_json(json_text):
 if 'messages' not in st.session_state:
     st.session_state.messages = []
 
-if 'json_data' not in st.session_state:
-    st.session_state.json_data = ""
-if 'json_filename' not in st.session_state:
-    st.session_state.json_filename = ""
-
 # 편집 관련 상태 변수 초기화
 if 'editing_message' not in st.session_state:
     st.session_state.editing_message = None
@@ -126,15 +121,15 @@ with st.sidebar:
     if st.button("대화 초기화"):
         st.session_state.messages = []
         st.rerun()
-     
+ 
     if st.session_state.messages:  # 대화 내용이 있을 때만 버튼 표시
-        # json_data, filename = save_conversation_as_json()
+        json_data, filename = save_conversation_as_json()
         st.download_button(
             label="💾 대화 내용 저장 (JSON)",
-            data=st.session_state.json_data,
-            file_name=st.session_state.json_filename,
-            mime="application/json")
-
+            data=json_data,
+            file_name=filename,
+            mime="application/json"
+        )
     else:
         # JSON 업로드 기능 (대화가 없을 때만)
         st.markdown("---")
@@ -245,10 +240,9 @@ def generate_claude_response():
                 
                 # 메시지 기록에 추가
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
-               
+                
         # 응답 생성 완료
         st.session_state.generating_response = False
-        st.session_state.json_data, st.session_state.json_filename = save_conversation_as_json()
         
     except Exception as e:
         st.error(f"오류가 발생했습니다: {str(e)}")
