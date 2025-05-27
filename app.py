@@ -207,6 +207,7 @@ def generate_claude_response():
         
     except Exception as e:
         st.error(f"오류가 발생했습니다: {str(e)}")
+        e = eval(str(e))
         if e['error']['type']=='overloaded_error':
             st.markdown("이런, Anthropic 서버가 죽어있네요😞")
         st.session_state.generating_response = False
