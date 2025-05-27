@@ -52,6 +52,7 @@ def claude_stream_generator(response_stream):
             elif chunk.type == 'content_block_start' and hasattr(chunk, 'content_block') and hasattr(chunk.content_block, 'text'):
                 yield chunk.content_block.text
              
+@st.cache_data
 def save_conversation_as_json():
     import json
     from datetime import datetime
