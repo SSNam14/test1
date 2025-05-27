@@ -91,20 +91,11 @@ if 'generating_response' not in st.session_state:
 if 'new_message_added' not in st.session_state:
     st.session_state.new_message_added = False
     
-# 사이드바에 API 키 입력 필드와 모델 설정 추가
+# 응답 전 응답 관련 설정
 with st.sidebar:
-    st.header("API 설정")
+    api_key = st.secrets['ANTHROPIC_API_KEY']
     
-    # Anthropic API 키 설정
-    if 'ANTHROPIC_API_KEY' in st.secrets:
-        api_key = st.secrets['ANTHROPIC_API_KEY']
-    else:
-        api_key = st.text_input("Anthropic API 키를 입력하세요:", type="password", key="api_key_input")
-        if not api_key:
-            st.warning("API 키를 입력해주세요!")
-            st.stop()
-    
-    st.header("모델 설정")
+    st.header("응답 설정")
     model = st.selectbox(
         "모델 선택",
         ["claude-sonnet-4-20250514", "claude-3-7-sonnet-20250219", "claude-opus-4-20250514", "claude-3-opus-20240229", ]
@@ -239,8 +230,10 @@ if prompt:
     
     # 앱 재실행하여 모든 메시지를 for 루프에서 표시하도록 함
     st.rerun()
- 
+
+# 응답 후 히스토리 관리
 with st.sidebar:
+    st.header("대화 기록 관리")
     if st.button("대화 초기화"):
         st.session_state.messages = []
         st.rerun()
