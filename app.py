@@ -122,30 +122,13 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
      
-    #if st.session_state.messages:  # 대화 내용이 있을 때만 버튼 표시
-    #    json_data, filename = save_conversation_as_json()
-    #    st.download_button(
-    #        label="💾 대화 내용 저장 (JSON)",
-    #        data=json_data,
-    #        file_name=filename,
-    #        mime="application/json"
-    #    )
-    if st.session_state.messages:
-        # 메시지가 변경되었을 때만 새로 생성
-        messages_id = id(st.session_state.messages)
-    
-        if ('last_messages_id' not in st.session_state or 
-            st.session_state.last_messages_id != messages_id):
-    
-            st.session_state.json_data, st.session_state.json_filename = save_conversation_as_json()
-            st.session_state.last_messages_id = messages_id
-    
+    if st.session_state.messages:  # 대화 내용이 있을 때만 버튼 표시
+        json_data, filename = save_conversation_as_json()
         st.download_button(
             label="💾 대화 내용 저장 (JSON)",
-            data=st.session_state.json_data,
-            file_name=st.session_state.json_filename,
-            mime="application/json"
-        )
+            data=json_data,
+            file_name=filename,
+            mime="application/json")
 
     else:
         # JSON 업로드 기능 (대화가 없을 때만)
