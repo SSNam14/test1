@@ -109,9 +109,11 @@ with st.sidebar:
         ["claude-sonnet-4-20250514", "claude-3-7-sonnet-20250219", "claude-opus-4-20250514", "claude-3-opus-20240229", ]
     )
     
-    temperature = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7, step=0.1)
+    temperature = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7, step=0.1, 
+                            help="값이 높을수록 창의적이고 다양한 답변, 낮을수록 일관되고 예측 가능한 답변")
     
-    max_tokens = st.slider("max_tokens", min_value=1, max_value=4096, value=1024, step=1)
+    max_tokens = st.slider("max_tokens", min_value=1, max_value=4096, value=1024, step=1, 
+                           help="응답의 최대 토큰 수 (대략 단어 수). 긴 답변이 필요하면 높게 설정")
 
     system_prompt = st.text_area("시스템 프롬프트", "간결하게")
     
