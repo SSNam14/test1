@@ -79,6 +79,11 @@ def load_conversation_from_json(json_text):
 if 'messages' not in st.session_state:
     st.session_state.messages = []
 
+if 'json_data' not in st.session_state:
+    st.session_state.json_data = ""
+if 'json_filename' not in st.session_state:
+    st.session_state.json_filename = ""
+
 # 편집 관련 상태 변수 초기화
 if 'editing_message' not in st.session_state:
     st.session_state.editing_message = None
