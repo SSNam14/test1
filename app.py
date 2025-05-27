@@ -121,16 +121,8 @@ with st.sidebar:
     if st.button("대화 초기화"):
         st.session_state.messages = []
         st.rerun()
- 
-    if st.session_state.messages:  # 대화 내용이 있을 때만 버튼 표시
-        json_data, filename = save_conversation_as_json()
-        st.download_button(
-            label="💾 대화 내용 저장 (JSON)",
-            data=json_data,
-            file_name=filename,
-            mime="application/json"
-        )
-    else:
+
+    if not st.session_state.messages:
         # JSON 업로드 기능 (대화가 없을 때만)
         st.markdown("---")
         json_input = st.text_area("📋 JSON 대화 내용 붙여넣기", placeholder="JSON 형식의 대화 내용을 붙여넣으세요...")
@@ -271,3 +263,13 @@ if prompt:
     
     # 앱 재실행하여 모든 메시지를 for 루프에서 표시하도록 함
     st.rerun()
+ 
+with st.sidebar:
+    if st.session_state.messages:  # 대화 내용이 있을 때만 버튼 표시
+        json_data, filename = save_conversation_as_json()
+        st.download_button(
+            label="💾 대화 내용 저장 (JSON)",
+            data=json_data,
+            file_name=filename,
+            mime="application/json"
+        )
