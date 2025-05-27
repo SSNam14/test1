@@ -13,7 +13,7 @@ if 'user_email' not in st.session_state:
     email = st.text_input("이메일을 입력하세요:")
     if st.button("로그인"):
         # 허용된 이메일 리스트 확인
-        allowed_emails = ["user1@gmail.com", "user2@gmail.com"]
+        allowed_emails = ["skaclitz@gmail.com", "user2@gmail.com"]
         if email in allowed_emails:
             st.session_state.user_email = email
             st.rerun()
