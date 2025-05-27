@@ -208,7 +208,7 @@ def generate_claude_response():
     except Exception as e:
         try:
             if eval(str(e))['error']['type']=='overloaded_error':
-                st.markdown("이런, Anthropic 서버가 죽어있네요.😞 잠시후에 다시 시도해 주세요")
+                st.markdown("이런, Anthropic 서버가 죽어있네요.😞 잠시후에 다시 시도하거나 다른 모델을 사용해주세요")
         except:
             st.error(f"오류가 발생했습니다: {str(e)}")
         st.session_state.generating_response = False
