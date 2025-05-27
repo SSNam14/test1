@@ -55,10 +55,11 @@ def claude_stream_generator(response_stream):
 def save_conversation_as_json():
     import json
     from datetime import datetime
+    from zoneinfo import ZoneInfo
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y%m%d_%H%M%S")
     filename = f"conversation_{timestamp}.json"
-
+ 
     json_data = json.dumps(st.session_state.messages, ensure_ascii=False, indent=2)
     return json_data, filename
 
