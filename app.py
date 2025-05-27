@@ -7,23 +7,6 @@ import os
 st.set_page_config(page_title="Claude", page_icon="🤖")
 st.title("Claude")
 
-# 세션에 이메일이 없으면 입력 요구
-if 'user_email' not in st.session_state:
-    st.title("로그인")
-    email = st.text_input("이메일을 입력하세요:")
-    if st.button("로그인"):
-        # 허용된 이메일 리스트 확인
-        allowed_emails = ["skaclitz@gmail.com", "user2@gmail.com"]
-        if email in allowed_emails:
-            st.session_state.user_email = email
-            st.rerun()
-        else:
-            st.error("허용되지 않은 이메일입니다.")
-else:
-    # 메인 앱
-    st.markdown(f"Welcome, {st.session_state.user_email}")
-    # 여기에 챗봇 코드
-
 st.markdown("""
 <style>
     /* 채팅 메시지 컨테이너 간격 줄이기 */
