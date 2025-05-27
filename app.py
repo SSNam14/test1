@@ -207,6 +207,7 @@ def generate_claude_response():
         
     except Exception as e:
         st.error(f"오류가 발생했습니다: {str(e)}")
+        st.markdown(e)
         st.session_state.generating_response = False
 
 # 편집 후 또는 새 메시지에 대한 자동 응답 생성
