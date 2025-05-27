@@ -117,30 +117,6 @@ with st.sidebar:
                            help="응답의 최대 토큰 수 (대략 단어 수). 긴 답변이 필요하면 높게 설정")
 
     system_prompt = st.text_area("시스템 프롬프트", "간결하게")
-    
-    if st.button("대화 초기화"):
-        st.session_state.messages = []
-        st.rerun()
-
-    if not st.session_state.messages:
-        # JSON 업로드 기능 (대화가 없을 때만)
-        st.markdown("---")
-        json_input = st.text_area("📋 JSON 대화 내용 붙여넣기", placeholder="JSON 형식의 대화 내용을 붙여넣으세요...")
-        if st.button("대화 불러오기"):
-            if json_input.strip():
-                loaded_messages = load_conversation_from_json(json_input)
-                if loaded_messages:
-                    st.session_state.messages = loaded_messages
-                    st.success("대화를 성공적으로 불러왔습니다!")
-                    st.rerun()
-                else:
-                    st.error("올바른 JSON 형식이 아닙니다.")
-            else:
-                st.warning("JSON 내용을 입력해주세요.")
-
- 
-    st.markdown("---")
-    st.markdown("Anthropic Claude API를 사용한 챗봇입니다.")
 
 # 메시지 편집 함수
 def edit_message(message_index):
@@ -265,6 +241,10 @@ if prompt:
     st.rerun()
  
 with st.sidebar:
+    if st.button("대화 초기화"):
+        st.session_state.messages = []
+        st.rerun()
+     
     if st.session_state.messages:  # 대화 내용이 있을 때만 버튼 표시
         json_data, filename = save_conversation_as_json()
         st.download_button(
@@ -273,3 +253,22 @@ with st.sidebar:
             file_name=filename,
             mime="application/json"
         )
+     
+    else:
+        # JSON 업로드 기능 (대화가 없을 때만)
+        st.markdown("---")
+        json_input = st.text_area("📋 JSON 대화 내용 붙여넣기", placeholder="JSON 형식의 대화 내용을 붙여넣으세요...")
+        if st.button("대화 불러오기"):
+            if json_input.strip():
+                loaded_messages = load_conversation_from_json(json_input)
+                if loaded_messages:
+                    st.session_state.messages = loaded_messages
+                    st.success("대화를 성공적으로 불러왔습니다!")
+                    st.rerun()
+                else:
+                    st.error("올바른 JSON 형식이 아닙니다.")
+            else:
+                st.warning("JSON 내용을 입력해주세요.")
+
+    st.markdown("---")
+    st.markdown("Anthropic Claude API를 사용한 챗봇입니다.")
