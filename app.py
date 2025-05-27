@@ -60,7 +60,19 @@ def save_conversation_as_json():
     filename = f"conversation_{timestamp}.json"
 
     json_data = json.dumps(st.session_state.messages, ensure_ascii=False, indent=2)
-    return json_data, filename             
+    return json_data, filename
+
+def load_conversation_from_json(json_text):
+    import json
+    try:
+        messages = json.loads(json_text)
+        # 간단한 유효성 검사
+        if isinstance(messages, list) and all('role' in msg and 'content' in msg for msg in messages):
+            return messages
+        else:
+            return None
+    except:
+        return None
 
 # 세션 상태 초기화
 if 'messages' not in st.session_state:
@@ -115,6 +127,23 @@ with st.sidebar:
             file_name=filename,
             mime="application/json"
         )
+    else:
+        # JSON 업로드 기능 (대화가 없을 때만)
+        st.markdown("---")
+        json_input = st.text_area("📋 JSON 대화 내용 붙여넣기", placeholder="JSON 형식의 대화 내용을 붙여넣으세요...")
+        if st.button("대화 불러오기"):
+            if json_input.strip():
+                loaded_messages = load_conversation_from_json(json_input)
+                if loaded_messages:
+                    st.session_state.messages = loaded_messages
+                    st.success("대화를 성공적으로 불러왔습니다!")
+                    st.rerun()
+                else:
+                    st.error("올바른 JSON 형식이 아닙니다.")
+            else:
+                st.warning("JSON 내용을 입력해주세요.")
+
+ 
     st.markdown("---")
     st.markdown("Anthropic Claude API를 사용한 챗봇입니다.")
 
