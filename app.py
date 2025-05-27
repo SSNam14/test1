@@ -52,12 +52,10 @@ def claude_stream_generator(response_stream):
             elif chunk.type == 'content_block_start' and hasattr(chunk, 'content_block') and hasattr(chunk.content_block, 'text'):
                 yield chunk.content_block.text
              
-@st.cache_data
 def save_conversation_as_json():
     import json
     from datetime import datetime
     from zoneinfo import ZoneInfo
-    # st.rerun()
 
     timestamp = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y%m%d_%H%M%S")
     filename = f"conversation_{timestamp}.json"
@@ -133,15 +131,21 @@ with st.sidebar:
     #        mime="application/json"
     #    )
     if st.session_state.messages:
-        # 함수를 바로 실행하지 않고 지연 실행
-        def get_conversation_data():
-            return save_conversation_as_json()
-        json_data, filename = get_conversation_data()
+        # 메시지가 변경되었을 때만 새로 생성
+        messages_id = id(st.session_state.messages)
+    
+        if ('last_messages_id' not in st.session_state or 
+            st.session_state.last_messages_id != messages_id):
+    
+            st.session_state.json_data, st.session_state.json_filename = save_conversation_as_json()
+            st.session_state.last_messages_id = messages_id
+    
         st.download_button(
             label="💾 대화 내용 저장 (JSON)",
-            data=json_data,
-            file_name=filename,
-            mime="application/json")
+            data=st.session_state.json_data,
+            file_name=st.session_state.json_filename,
+            mime="application/json"
+        )
 
     else:
         # JSON 업로드 기능 (대화가 없을 때만)
