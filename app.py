@@ -7,6 +7,10 @@ import os
 st.set_page_config(page_title="Claude", page_icon="🤖")
 st.title("Claude")
 
+if 'user' in st.session_state:
+    user_email = st.session_state.user.get('email')
+    st.write(f"Welcome, {user_email}")
+
 st.markdown("""
 <style>
     /* 채팅 메시지 컨테이너 간격 줄이기 */
