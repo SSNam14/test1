@@ -9,7 +9,7 @@ st.title("Claude")
 
 if 'user' in st.session_state:
     user_email = st.session_state.user.get('email')
-    st.write(f"Welcome, {user_email}")
+    st.markdown(f"Welcome, {user_email}")
 
 st.markdown("""
 <style>
