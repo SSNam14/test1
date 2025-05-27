@@ -56,6 +56,7 @@ def save_conversation_as_json():
     import json
     from datetime import datetime
     from zoneinfo import ZoneInfo
+    st.rerun()
 
     timestamp = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y%m%d_%H%M%S")
     filename = f"conversation_{timestamp}.json"
@@ -123,13 +124,13 @@ with st.sidebar:
         st.rerun()
      
     if st.session_state.messages:  # 대화 내용이 있을 때만 버튼 표시
-        if st.button("💾 대화 내용 저장 (JSON)"):
-            json_data, filename = save_conversation_as_json()
-            st.download_button(
-                label="다운로드",
-                data=json_data,
-                file_name=filename,
-                mime="application/json",)
+        json_data, filename = save_conversation_as_json()
+        st.download_button(
+            label="💾 대화 내용 저장 (JSON)",
+            data=json_data,
+            file_name=filename,
+            mime="application/json"
+        )
     else:
         # JSON 업로드 기능 (대화가 없을 때만)
         st.markdown("---")
