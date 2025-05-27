@@ -56,7 +56,7 @@ def save_conversation_as_json():
     import json
     from datetime import datetime
     from zoneinfo import ZoneInfo
-    st.rerun()
+    # st.rerun()
 
     timestamp = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y%m%d_%H%M%S")
     filename = f"conversation_{timestamp}.json"
