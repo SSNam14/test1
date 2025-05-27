@@ -246,7 +246,8 @@ with st.sidebar:
             label="💾 대화 내용 저장 (JSON)",
             data=json_data,
             file_name=filename,
-            mime="application/json"
+            mime="application/json",
+            help="대화 기록을 JSON으로 다운로드하여 새 세션에서 불러와 대화를 이어갈 수 있습니다."
         )
      
     else:
