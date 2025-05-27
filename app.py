@@ -46,7 +46,12 @@ st.markdown("""
 
 # Firebase 초기화
 if not firebase_admin._apps:
-    cred_dict = st.secrets["firebase"]
+    cred_dict = dict(st.secrets["firebase"])
+    
+    # private_key의 개행 문자 처리
+    if "private_key" in cred_dict:
+        cred_dict["private_key"] = cred_dict["private_key"].replace("\\n", "\n")
+    
     cred = credentials.Certificate(cred_dict)
     firebase_admin.initialize_app(cred)
 db = firestore.client()
