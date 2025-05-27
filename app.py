@@ -51,6 +51,16 @@ def claude_stream_generator(response_stream):
             # content_block_start 이벤트 처리
             elif chunk.type == 'content_block_start' and hasattr(chunk, 'content_block') and hasattr(chunk.content_block, 'text'):
                 yield chunk.content_block.text
+             
+def save_conversation_as_json():
+    import json
+    from datetime import datetime
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"conversation_{timestamp}.json"
+
+    json_data = json.dumps(st.session_state.messages, ensure_ascii=False, indent=2)
+    return json_data, filename             
 
 # 세션 상태 초기화
 if 'messages' not in st.session_state:
@@ -96,7 +106,15 @@ with st.sidebar:
     if st.button("대화 초기화"):
         st.session_state.messages = []
         st.rerun()
-    
+ 
+    if st.session_state.messages:  # 대화 내용이 있을 때만 버튼 표시
+        json_data, filename = save_conversation_as_json()
+        st.download_button(
+            label="💾 대화 내용 저장 (JSON)",
+            data=json_data,
+            file_name=filename,
+            mime="application/json"
+        )
     st.markdown("---")
     st.markdown("Anthropic Claude API를 사용한 챗봇입니다.")
 
