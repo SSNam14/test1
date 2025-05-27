@@ -123,14 +123,25 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
      
-    if st.session_state.messages:  # 대화 내용이 있을 때만 버튼 표시
-        json_data, filename = save_conversation_as_json()
+    #if st.session_state.messages:  # 대화 내용이 있을 때만 버튼 표시
+    #    json_data, filename = save_conversation_as_json()
+    #    st.download_button(
+    #        label="💾 대화 내용 저장 (JSON)",
+    #        data=json_data,
+    #        file_name=filename,
+    #        mime="application/json"
+    #    )
+    if st.session_state.messages:
+        # 함수를 바로 실행하지 않고 지연 실행
+        def get_conversation_data():
+            return save_conversation_as_json()
+        json_data, filename = get_conversation_data()
         st.download_button(
             label="💾 대화 내용 저장 (JSON)",
             data=json_data,
             file_name=filename,
-            mime="application/json"
-        )
+            mime="application/json")
+
     else:
         # JSON 업로드 기능 (대화가 없을 때만)
         st.markdown("---")
