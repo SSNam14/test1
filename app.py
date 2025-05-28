@@ -2,6 +2,7 @@ import streamlit as st
 import anthropic
 from anthropic import Anthropic
 import os
+import re
 import uuid
 import firebase_admin
 from firebase_admin import credentials, firestore
