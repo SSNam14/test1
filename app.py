@@ -38,8 +38,18 @@ st.markdown("""
     .edit-button {
         font-size: 0.8rem;
         color: #888;
-        margin-left: 5px;
+        margin-left: 2px;
         cursor: pointer;
+    }
+
+    /* 일반 요소들 세로 여백 줄이기 */
+    .element-container {
+        margin-bottom: 0.0rem;
+    }
+
+    /* 텍스트 입력 필드 여백 */
+    .stTextInput > div > div > input {
+        padding: 0.4rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -47,14 +57,13 @@ st.markdown("""
 # Firebase 초기화
 if not firebase_admin._apps:
     cred_dict = dict(st.secrets["firebase"])
-    
-    # private_key의 개행 문자 처리
     if "private_key" in cred_dict:
         cred_dict["private_key"] = cred_dict["private_key"].replace("\\n", "\n")
-    
     cred = credentials.Certificate(cred_dict)
     firebase_admin.initialize_app(cred)
 db = firestore.client()
+
+api_key = st.secrets['ANTHROPIC_API_KEY']
 
 # 세션 ID 관리 (추가)
 if 'session_id' not in st.session_state:
@@ -174,7 +183,6 @@ def save_conversation_to_db():
         print(f"대화 저장 오류: {str(e)}")
         return False
 
-# 대화 불러오기 함수 (추가)
 def load_conversation_from_db(session_id):
     if not st.session_state.user_email:
         return None
@@ -305,27 +313,23 @@ if 'new_message_added' not in st.session_state:
 with st.sidebar:
     st.header("👤 사용자 로그인")
 
-    if st.session_state.user_email:
-        # 로그인된 상태
-        st.success(f"안녕하세요, {st.session_state.user_name}님! 👋")
-
-        if st.button("로그아웃", key="logout_btn"):
+    if st.session_state.user_email: # 로그인된 상태
+        st.markdown(f'<p style="margin:0.2; line-height:2.5;">안녕하세요, {st.session_state.user_name}님! 👋</p>', unsafe_allow_html=True)
+        if st.button("로그아웃", key="logout_btn", use_container_width=True,):
             logout()
-    else:
-        # 로그인되지 않은 상태
+                
+    else: # 로그인되지 않은 상태
         st.text_input("이메일 주소", key="email_input", placeholder='abcd@gmail.com', label_visibility='collapsed')
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            if st.button("로그인", key="login_btn", use_container_width=True):
-                login()
-                st.rerun()  # 로그인 후 즉시 페이지 새로고침
+        
+        if st.button("로그인", key="login_btn", use_container_width=True, help="로그인하시면 대화 기록이 저장됩니다."):
+            login()
+            st.rerun()  # 로그인 후 즉시 페이지 새로고침
 
         if 'login_error' in st.session_state and st.session_state.login_error:
             st.error(st.session_state.error_message)
     
-    api_key = st.secrets['ANTHROPIC_API_KEY']
     
-    st.header("응답 설정")
+    st.header("⚙️ 응답 설정")
     model = st.selectbox(
         "모델 선택",
         ["claude-sonnet-4-20250514", "claude-3-7-sonnet-20250219", "claude-opus-4-20250514", "claude-3-opus-20240229", ]
@@ -334,11 +338,10 @@ with st.sidebar:
     temperature = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7, step=0.1, 
                             help="값이 높을수록 창의적이고 다양한 답변, 낮을수록 일관되고 예측 가능한 답변")
     
-    max_tokens = st.slider("max_tokens", min_value=1, max_value=4096, value=1024, step=1, 
+    max_tokens = st.slider("max_tokens", min_value=1, max_value=8128, value=2048, step=1, 
                            help="응답의 최대 토큰 수 (대략 단어 수). 긴 답변이 필요하면 높게 설정")
 
-    system_prompt = st.text_area("시스템 프롬프트", "간결하게")
-    st.markdown("---")
+    system_prompt = st.text_area("시스템 프롬프트", "간결하게", help="AI의 역할과 응답 스타일을 설정합니다")
 
 
 # 메시지 편집 함수
@@ -440,7 +443,10 @@ def generate_claude_response():
         st.session_state.generating_response = False
         
     except Exception as e:
-        st.error(f"오류가 발생했습니다: {str(e)}")
+        if eval(str(e))['error']['type']=='overloaded_error':
+            st.error("이런, Anthropic 서버가 죽어있네요😞 잠시 후 다시 시도하거나 다른 모델을 사용해 주세요")
+        else:
+            st.error(f"오류가 발생했습니다: {str(e)}")
         st.session_state.generating_response = False
 
 # 편집 후 또는 새 메시지에 대한 자동 응답 생성
@@ -470,41 +476,18 @@ if prompt:
 
 # 응답 후 히스토리 관리
 with st.sidebar:
-    st.header("대화 기록 관리")
-    if st.button("대화 초기화"):
+    st.header("📖 대화 기록 관리")
+
+    if st.button("대화 초기화", use_container_width=True):
         st.session_state.session_id = str(uuid.uuid4())
         st.session_state.messages = []
         st.rerun()
-     
-    if st.session_state.messages:  # 대화 내용이 있을 때만 버튼 표시
-        json_data, filename = save_conversation_as_json()
-        st.download_button(
-            label="💾 대화 내용 저장 (JSON)",
-            data=json_data,
-            file_name=filename,
-            mime="application/json",
-            help="대화 기록을 JSON으로 다운로드하여 새 세션에서 불러와 대화를 이어갈 수 있습니다."
-        )
-     
-    else:
-        # JSON 업로드 기능 (대화가 없을 때만)
-        json_input = st.text_area("📋 JSON 대화 내용 붙여넣기", placeholder="JSON 형식의 대화 내용을 붙여넣으세요...")
-        if st.button("대화 불러오기"):
-            if json_input.strip():
-                loaded_messages = load_conversation_from_json(json_input)
-                if loaded_messages:
-                    st.session_state.session_id = str(uuid.uuid4())
-                    st.session_state.messages = loaded_messages
-                    st.success("대화를 성공적으로 불러왔습니다!")
-                    st.rerun()
-                else:
-                    st.error("올바른 JSON 형식이 아닙니다.")
-            else:
-                st.warning("JSON 내용을 입력해주세요.")
 
-    if st.session_state.user_email:
-        st.header("💬 이전 대화")
-    
+    st.markdown("#### 이전 대화")
+    if not st.session_state.user_email:
+        st.write("이 기능을 사용하시려면 로그인해 주세요")
+
+    else:
         # 최근 세션 목록 불러오기
         recent_sessions, debug_info = get_recent_sessions()
     
@@ -527,10 +510,11 @@ with st.sidebar:
                     preview_text = preview_text[:20] + "..."
         
                 # 버튼 텍스트 생성 (번호 + 짧은 미리보기)
-                button_text = f"{i+1}. {preview_text}"
+                button_text = f"{i+1}. {preview_text.replace('\n', ' ')}"
         
                 # 클릭 가능한 버튼으로 만들기
-                if st.button(button_text, key=f"session_{session['session_id']}"):
+                button_key = f"session_{session['session_id']}"
+                if st.button(button_text, key=button_key, use_container_width=True):
                     # 선택한 세션 불러오기
                     loaded_messages = load_conversation_from_db(session['session_id'])
                     if loaded_messages:
@@ -540,6 +524,34 @@ with st.sidebar:
         else:
             st.write("이전 대화 기록이 없습니다.")
             st.write(f"현재 세션 ID: {st.session_state.session_id}")
+
+            
+    st.markdown("#### 대화내용 내보내기/불러오기")
+    if st.session_state.messages:  # 대화 내용이 있을 때만 버튼 표시
+        json_data, filename = save_conversation_as_json()
+        st.download_button(
+            label="JSON으로 대화 내용 내보내기",
+            data=json_data,
+            file_name=filename,
+            mime="application/json",
+            help="대화 기록을 JSON으로 다운로드하여 새 세션에서 불러와 대화를 이어갈 수 있습니다.",
+            use_container_width=True)
+     
+    else:
+        # JSON 업로드 기능 (대화가 없을 때만)
+        json_input = st.text_area("📋 JSON 대화 내용 붙여넣기", placeholder="JSON 형식의 대화 내용을 붙여넣으세요...")
+        if st.button("JSON으로부터 대화 불러오기", use_container_width=True):
+            if json_input.strip():
+                loaded_messages = load_conversation_from_json(json_input)
+                if loaded_messages:
+                    st.session_state.session_id = str(uuid.uuid4())
+                    st.session_state.messages = loaded_messages
+                    st.success("대화를 성공적으로 불러왔습니다!")
+                    st.rerun()
+                else:
+                    st.error("올바른 JSON 형식이 아닙니다.")
+            else:
+                st.warning("JSON 내용을 입력해주세요.")            
                 
     st.markdown("---")
-    st.markdown("Anthropic Claude API를 사용한 챗봇입니다.")
+    st.markdown("Powered by Anthropic Claude")
