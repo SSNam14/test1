@@ -313,7 +313,7 @@ with st.sidebar:
             logout()
     else:
         # 로그인되지 않은 상태
-        st.text_input("이메일 주소", key="email_input", placeholder='abcd@gmail.com 으로 로그인하시면 대화 기록이 저장됩니다', label_visibility='hidden')
+        st.text_input("이메일 주소", key="email_input", placeholder='abcd@gmail.com', label_visibility='collapsed')
         col1, col2 = st.columns([1, 1])
         with col1:
             if st.button("로그인", key="login_btn", use_container_width=True):
