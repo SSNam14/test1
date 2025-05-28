@@ -92,6 +92,60 @@ if 'user_email' not in st.session_state:
 if 'user_name' not in st.session_state:
     st.session_state.user_name = None
 
+#코드 라인인지 확인
+def is_code_line(line):
+    import re
+    stripped = line.strip()
+    return (
+        # 코드 시작 키워드
+        bool(re.match(r"^(for|if|elif|else|while|def|class|try|except|finally|with|async\s+def|await|match|case|return|yield|raise|break|continue|pass|import|from|global|nonlocal|assert)\b", stripped)) or
+        # 데코레이터
+        stripped.startswith("@") or
+        # 주석
+        stripped.startswith("#") or
+        # 들여쓰기
+        line.startswith(" ") or line.startswith("\t") or
+        # 함수 호출 형태
+        bool(re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*\(.*\)", stripped)) or
+        # 변수 할당
+        bool(re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*\s*=.*", stripped))
+    )
+
+def render_mixed_content(content):
+    lines = content.splitlines()
+    blocks = []
+    current_block = []
+    in_code_block = False
+
+    for line in lines:
+        code_like = is_code_line(line) or (in_code_block and line.strip() == "")
+        
+        if code_like:
+            if not in_code_block:
+                if current_block:
+                    blocks.append(("text", "\n".join(current_block)))
+                    current_block = []
+                in_code_block = True
+            current_block.append(line)
+        else:
+            if in_code_block:
+                blocks.append(("code", "\n".join(current_block)))
+                current_block = []
+                in_code_block = False
+            current_block.append(line)
+
+    # 마지막 블록 추가
+    if current_block:
+        blocks.append(("code" if in_code_block else "text", "\n".join(current_block)))
+
+    # 스트림릿에 출력
+    for block_type, block_content in blocks:
+        if block_type == "code":
+            st.code(block_content, language="python")
+        else:
+            st.markdown(f'<div style="white-space: pre-wrap;">{block_content}</div>', unsafe_allow_html=True)
+
+    
 # 사용자 인증 함수
 def authenticate_user(email):
     if not email or not email.strip(): # 빈 이메일 체크
@@ -387,9 +441,12 @@ for i, message in enumerate(st.session_state.messages):
                         st.rerun()
             else:
                 # 일반 메시지 표시 + 편집 버튼
+                #st.markdown(f'<div style="white-space: pre-wrap;">{message["content"]}</div>', unsafe_allow_html=True)
+                #st.code(message["content"])
+                render_mixed_content(message["content"])
+                #st.write(message["content"], unsafe_allow_html=True)
+
                 col1, col2 = st.columns([10, 1])
-                with col1:
-                    st.markdown(message["content"], unsafe_allow_html=True)
                 with col2:
                     # 모든 사용자 메시지에 편집 버튼 표시
                     if st.button("✏️", key=f"edit_btn_{i}", help="이 메시지 편집"):
