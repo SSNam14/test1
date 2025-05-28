@@ -93,7 +93,6 @@ if 'user_email' not in st.session_state:
 if 'user_name' not in st.session_state:
     st.session_state.user_name = None
 
-#코드 라인인지 확인
 def escape_literal_newlines_fixed(code: str) -> str:
     """
     문자열 리터럴 내의 실제 개행문자를 \\n으로 이스케이프합니다.
