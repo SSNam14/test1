@@ -276,7 +276,7 @@ def login():
         st.session_state.login_error = False
         user_data = {'email': email, 'name': user_name}
         controller.set('user_login', user_data, max_age=604800,
-                       secure=True, same_site='Lax') #브라우저 쿠키에 인증 정보 저장
+                       secure=True, same_site='Strict') #브라우저 쿠키에 인증 정보 저장
         
     else:
         st.session_state.login_error = True
