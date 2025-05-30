@@ -4,3 +4,4 @@ numpy
 matplotlib
 anthropic
 firebase-admin
+streamlit_cookies_controller
