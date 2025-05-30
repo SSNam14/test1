@@ -6,6 +6,11 @@ import re
 import uuid
 import firebase_admin
 from firebase_admin import credentials, firestore
+from streamlit_cookies_controller import CookieController, RemoveEmptyElementContainer
+import time
+import json
+
+max_input_token = 40000
 
 # 페이지 설정
 st.set_page_config(page_title="Claude", page_icon="🤖")
@@ -66,6 +71,28 @@ db = firestore.client()
 
 api_key = st.secrets['ANTHROPIC_API_KEY']
 
+
+client = Anthropic(api_key=api_key)
+
+# 페이지 설정 및 쿠키 컨트롤러 초기화
+controller = CookieController()
+time.sleep(0.1)
+RemoveEmptyElementContainer()
+
+if 'cookie_initialized' not in st.session_state:
+    try:
+        user_cookie = controller.get('user_login')
+        if user_cookie is not None:
+            st.session_state.user_email = user_cookie.get("email")
+            st.session_state.user_name = user_cookie.get("name")
+            st.session_state.cookie_initialized = True
+        else:
+            # 쿠키 없음 (or 아직 초기 렌더링이라 못 읽음)
+            # rerun을 통해 다음 렌더링에 쿠키를 읽을 수 있도록 유도
+            st.rerun()
+    except:
+        pass
+
 # 세션 ID 관리 (추가)
 if 'session_id' not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
@@ -92,6 +119,9 @@ if 'user_email' not in st.session_state:
 
 if 'user_name' not in st.session_state:
     st.session_state.user_name = None
+
+if 'num_input_tokens' not in st.session_state:
+    st.session_state.num_input_tokens = 0
 
 def escape_literal_newlines_fixed(code: str) -> str:
     """
@@ -240,10 +270,13 @@ def login():
 
     user_name = authenticate_user(email)
 
-    if user_name:
+    if user_name: #로그인 성공
         st.session_state.user_email = email
         st.session_state.user_name = user_name
         st.session_state.login_error = False
+        user_data = {'email': email, 'name': user_name}
+        controller.set('user_login', user_data, max_age=604800) #브라우저 쿠키에 인증 정보 저장
+        
     else:
         st.session_state.login_error = True
         st.session_state.error_message = "등록되지 않은 이메일입니다."
@@ -252,6 +285,7 @@ def logout():
     st.session_state.user_email = None
     st.session_state.user_name = None
     st.session_state.email_input = ""
+    controller.remove('user_login')
     st.rerun()  # 즉시 페이지 새로고침
 
 def claude_stream_generator(response_stream):
@@ -266,7 +300,6 @@ def claude_stream_generator(response_stream):
                 yield chunk.content_block.text
              
 def save_conversation_as_json():
-    import json
     from datetime import datetime
     from zoneinfo import ZoneInfo
 
@@ -277,7 +310,6 @@ def save_conversation_as_json():
     return json_data, filename
 
 def load_conversation_from_json(json_text):
-    import json
     try:
         messages = json.loads(json_text)
         # 간단한 유효성 검사
@@ -416,6 +448,14 @@ def get_recent_sessions(limit=10):
     except Exception as e:
         return [], {'error': str(e)}
 
+#토큰 카운팅
+def count_token(model, system, messages):
+    response = client.messages.count_tokens(
+        model=model,
+        system=system,
+        messages=messages,
+    )
+    return int(dict(response)['input_tokens'])
 
 # 세션 상태 초기화
 if 'messages' not in st.session_state:
@@ -462,8 +502,8 @@ with st.sidebar:
     temperature = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7, step=0.1, 
                             help="값이 높을수록 창의적이고 다양한 답변, 낮을수록 일관되고 예측 가능한 답변")
     
-    max_tokens = st.slider("max_tokens", min_value=1, max_value=8128, value=2048, step=1, 
-                           help="응답의 최대 토큰 수 (대략 단어 수). 긴 답변이 필요하면 높게 설정")
+    #max_tokens = st.slider("max_tokens", min_value=1, max_value=8128, value=2048, step=1, 
+    #                       help="응답의 최대 토큰 수 (대략 단어 수). 긴 답변이 필요하면 높게 설정")
 
     system_prompt = st.text_area("시스템 프롬프트", "간결하게", help="AI의 역할과 응답 스타일을 설정합니다")
 
@@ -510,11 +550,7 @@ for i, message in enumerate(st.session_state.messages):
                         st.session_state.editing_message = None
                         st.rerun()
             else:
-                # 일반 메시지 표시 + 편집 버튼
-                #st.markdown(f'<div style="white-space: pre-wrap;">{message["content"]}</div>', unsafe_allow_html=True)
-                #st.code(message["content"])
-                render_mixed_content(message["content"])
-                #st.write(message["content"], unsafe_allow_html=True)
+                render_mixed_content(message["content"]) #규칙 기반 코드블록 인식 후 출력
 
                 col1, col2 = st.columns([10, 1])
                 with col2:
@@ -526,6 +562,32 @@ for i, message in enumerate(st.session_state.messages):
             # 어시스턴트 메시지는 편집 불가
             st.markdown(message["content"], unsafe_allow_html=True)
 
+def truncate_messages(messages, max_tokens=max_input_token):
+    """토큰 사용량 추산을 통해 효율적으로 대화 길이 제한"""
+    if len(messages) == 0:
+        return messages
+
+    # 현재 전체 토큰 수 계산
+    current_tokens = count_token(model, system_prompt, messages)
+
+    # 토큰 수가 제한 이하면 전체 반환
+    if current_tokens <= max_tokens:
+        return messages, current_tokens
+
+    # 토큰 수가 초과하면 비례적으로 대화 수 줄이기
+    total_conversations = len(messages) // 2  # user+assistant 쌍의 개수
+    if total_conversations == 0:
+        return messages, current_tokens
+
+    # 유지할 대화 수 계산 (최소 1개는 보장)
+    keep_conversations = max(1, int(total_conversations * (max_tokens / current_tokens)))
+
+    # 최근 N개 대화만 유지 (user+assistant 쌍 단위)
+    keep_messages_count = keep_conversations * 2
+    truncated_messages = messages[-keep_messages_count:]
+    return truncated_messages, int(current_tokens * (max_tokens / current_tokens))
+
+
 #응답 생성 함수 - 중복을 방지하기 위해 함수로 분리
 def generate_claude_response():
     # 메시지 기록 준비
@@ -533,9 +595,8 @@ def generate_claude_response():
         {"role": m["role"], "content": m["content"]}
         for m in st.session_state.messages
     ]
-    
-    # Anthropic 클라이언트 생성
-    client = Anthropic(api_key=api_key)
+    truncated_messages, num_input_tokens = truncate_messages(messages, max_tokens=max_input_token)
+    st.session_state.num_input_tokens = num_input_tokens
     
     try:
         # API 호출
@@ -548,9 +609,9 @@ def generate_claude_response():
                 
                 response = client.messages.create(
                     model=model,
-                    max_tokens=max_tokens,
-                    messages=messages,
+                    messages=truncated_messages,
                     temperature=temperature,
+                    max_tokens=64000,
                     system=system_prompt,
                     stream=True
                 )
@@ -561,7 +622,7 @@ def generate_claude_response():
                     full_response += text
                     # 응답 업데이트
                     response_placeholder.markdown(full_response)
-                
+            
                 # 메시지 기록에 추가
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
                 save_conversation_to_db()
@@ -603,6 +664,10 @@ if prompt:
 
 # 응답 후 히스토리 관리
 with st.sidebar:
+    my_bar = st.progress(0, text='토큰 사용량')
+    token_in_K = st.session_state.num_input_tokens/1000
+    my_bar.progress(min(st.session_state.num_input_tokens/max_input_token, 1.), text=f'{token_in_K:.2f}K tokens as input, {token_in_K*0.003*1350:.1f}₩ per answer')
+
     st.header("📖 대화 기록 관리")
 
     if st.button("대화 초기화", use_container_width=True):
@@ -645,6 +710,7 @@ with st.sidebar:
                     # 선택한 세션 불러오기
                     loaded_messages = load_conversation_from_db(session['session_id'])
                     if loaded_messages:
+                        _, st.session_state.num_input_tokens = truncate_messages(loaded_messages, 10000000) #대화 불러오자마자 계산
                         st.session_state.messages = loaded_messages
                         st.success("이전 대화를 불러왔습니다!")
                         st.rerun()
@@ -678,7 +744,7 @@ with st.sidebar:
                 else:
                     st.error("올바른 JSON 형식이 아닙니다.")
             else:
-                st.warning("JSON 내용을 입력해주세요.")            
+                st.warning("JSON 내용을 입력해주세요.")
                 
     st.markdown("---")
     st.markdown("Powered by Anthropic Claude")
