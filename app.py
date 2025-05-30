@@ -83,6 +83,7 @@ COOKIE_KEY = 'user_login'
 if 'cookie_initialized' not in st.session_state:
     try:
         user_cookie = cookie_manager.get(COOKIE_KEY)
+        time.sleep(0.5)
         if user_cookie is not None:
             print("cookie with", user_cookie)
             st.session_state.user_email = user_cookie.get("email")
