@@ -77,7 +77,6 @@ client = Anthropic(api_key=api_key)
 
 # 페이지 설정 및 쿠키 컨트롤러 초기화
 cookie_manager = stx.CookieManager()
-time.sleep(0.1)
 
 COOKIE_KEY = 'user_login'
 
@@ -497,6 +496,7 @@ with st.sidebar:
     st.header("👤 사용자 로그인")
     if st.button("테스트 쿠키 설정"):
         cookie_manager.set('test_cookie', 'test_value')
+        time.sleep(0.5)
         st.write("테스트 쿠키 설정 완료")
 
     if st.session_state.user_email: # 로그인된 상태
