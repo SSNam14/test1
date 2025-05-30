@@ -287,6 +287,7 @@ def login():
                 secure=False,  # 로컬/클라우드 모두 호환
                 same_site='lax'
             )
+            time.sleep(0.5)
             print("쿠키 설정 완료")
         except Exception as e:
             print(f"쿠키 설정 실패: {e}")
