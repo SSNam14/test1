@@ -81,10 +81,6 @@ time.sleep(0.1)
 
 COOKIE_KEY = 'user_login'
 
-if st.button("테스트 쿠키 설정"):
-    cookie_manager.set('test_cookie', 'test_value')
-    st.write("테스트 쿠키 설정 완료")
-
 if 'cookie_initialized' not in st.session_state:
     try:
         user_cookie = cookie_manager.get(COOKIE_KEY)
@@ -499,6 +495,9 @@ if 'new_message_added' not in st.session_state:
 # 응답 전 응답 관련 설정
 with st.sidebar:
     st.header("👤 사용자 로그인")
+    if st.button("테스트 쿠키 설정"):
+        cookie_manager.set('test_cookie', 'test_value')
+        st.write("테스트 쿠키 설정 완료")
 
     if st.session_state.user_email: # 로그인된 상태
         st.markdown(f'<p style="margin:0.2; line-height:2.5;">안녕하세요, {st.session_state.user_name}님! 👋</p>', unsafe_allow_html=True)
