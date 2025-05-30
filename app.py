@@ -81,6 +81,10 @@ time.sleep(0.1)
 
 COOKIE_KEY = 'user_login'
 
+if st.button("테스트 쿠키 설정"):
+    cookie_manager.set('test_cookie', 'test_value')
+    st.write("테스트 쿠키 설정 완료")
+
 if 'cookie_initialized' not in st.session_state:
     try:
         user_cookie = cookie_manager.get(COOKIE_KEY)
