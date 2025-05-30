@@ -79,21 +79,22 @@ client = Anthropic(api_key=api_key)
 cookie_manager = stx.CookieManager()
 time.sleep(0.1)
 
+COOKIE_KEY = 'user_login'
+
 if 'cookie_initialized' not in st.session_state:
     try:
-        user_cookie = cookie_manager.get('user_login')
+        user_cookie = cookie_manager.get(COOKIE_KEY)
         if user_cookie is not None:
             print("cookie with", user_cookie)
             st.session_state.user_email = user_cookie.get("email")
             st.session_state.user_name = user_cookie.get("name")
             st.session_state.cookie_initialized = True
         else:
-            print("no cookie (likely first render)")
-            # 쿠키 없음 (or 아직 초기 렌더링이라 못 읽음)
-            # rerun을 통해 다음 렌더링에 쿠키를 읽을 수 있도록 유도
-            st.rerun()
-    except:
-        pass
+            print("no cookie")
+            st.session_state.cookie_initialized = True
+    except Exception as e:
+        print(f"Cookie error: {e}")
+        st.session_state.cookie_initialized = True
 
 # 세션 ID 관리 (추가)
 if 'session_id' not in st.session_state:
@@ -261,33 +262,35 @@ def authenticate_user(email):
         return user_data.get('name')
     return None
 
-# 로그인/로그아웃 함수
 def login():
     email = st.session_state.email_input
 
-    if not email or not email.strip(): # 빈 이메일 체크
+    if not email or not email.strip():
         st.session_state.login_error = True
         st.session_state.error_message = "이메일을 입력해주세요."
         return
 
     user_name = authenticate_user(email)
 
-    if user_name: #로그인 성공
+    if user_name:
         st.session_state.user_email = email
         st.session_state.user_name = user_name
         st.session_state.login_error = False
         user_data = {'email': email, 'name': user_name}
 
-        # 쿠키 설정 (7일간 유지) - key 값을 다르게 설정
+        # 쿠키 설정 수정 - 클라우드 환경 고려
         expires_at = datetime.datetime.now() + datetime.timedelta(days=7)
-        cookie_manager.set(
-            'user_data', 
-            user_data, 
-            expires_at=expires_at,
-            secure=True,
-            same_site='lax'
-        )
-        print("로그인 성공")
+        try:
+            cookie_manager.set(
+                COOKIE_KEY,
+                user_data,
+                expires_at=expires_at,
+                secure=False,  # 로컬/클라우드 모두 호환
+                same_site='lax'
+            )
+            print("쿠키 설정 완료")
+        except Exception as e:
+            print(f"쿠키 설정 실패: {e}")
 
     else:
         st.session_state.login_error = True
@@ -297,9 +300,12 @@ def logout():
     st.session_state.user_email = None
     st.session_state.user_name = None
     st.session_state.email_input = ""
-    if cookie_manager.get('user_data'):
-        cookie_manager.delete('user_data')
-    st.rerun()  # 즉시 페이지 새로고침
+    try:
+        cookie_manager.delete(COOKIE_KEY)
+        print("쿠키 삭제 완료")
+    except Exception as e:
+        print(f"쿠키 삭제 실패: {e}")
+    st.rerun()
 
 def claude_stream_generator(response_stream):
     """Claude API의 스트리밍 응답을 텍스트 제너레이터로 변환합니다."""
