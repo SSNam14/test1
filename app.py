@@ -12,6 +12,7 @@ import json
 import datetime
 
 max_input_token = 40000
+cookie_delay = 0.3
 
 # 페이지 설정
 st.set_page_config(page_title="Claude", page_icon="🤖")
@@ -83,7 +84,7 @@ COOKIE_KEY = 'user_login'
 if 'cookie_initialized' not in st.session_state:
     try:
         user_cookie = cookie_manager.get(COOKIE_KEY)
-        time.sleep(0.5)
+        time.sleep(cookie_delay)
         if user_cookie is not None:
             print("cookie with", user_cookie)
             st.session_state.user_email = user_cookie.get("email")
@@ -288,7 +289,7 @@ def login():
                 secure=False,  # 로컬/클라우드 모두 호환
                 same_site='lax'
             )
-            time.sleep(0.5)
+            time.sleep(cookie_delay)
             print("쿠키 설정 완료")
         except Exception as e:
             print(f"쿠키 설정 실패: {e}")
@@ -303,6 +304,7 @@ def logout():
     st.session_state.email_input = ""
     try:
         cookie_manager.delete(COOKIE_KEY)
+        time.sleep(cookie_delay)
         print("쿠키 삭제 완료")
     except Exception as e:
         print(f"쿠키 삭제 실패: {e}")
@@ -496,11 +498,7 @@ if 'new_message_added' not in st.session_state:
 # 응답 전 응답 관련 설정
 with st.sidebar:
     st.header("👤 사용자 로그인")
-    if st.button("테스트 쿠키 설정"):
-        cookie_manager.set('test_cookie', 'test_value')
-        time.sleep(0.5)
-        st.write("테스트 쿠키 설정 완료")
-
+    
     if st.session_state.user_email: # 로그인된 상태
         st.markdown(f'<p style="margin:0.2; line-height:2.5;">안녕하세요, {st.session_state.user_name}님! 👋</p>', unsafe_allow_html=True)
         if st.button("로그아웃", key="logout_btn", use_container_width=True,):
