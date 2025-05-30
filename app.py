@@ -6,9 +6,10 @@ import re
 import uuid
 import firebase_admin
 from firebase_admin import credentials, firestore
-from streamlit_cookies_controller import CookieController, RemoveEmptyElementContainer
+import extra_streamlit_components as stx
 import time
 import json
+import datetime
 
 max_input_token = 40000
 
@@ -75,18 +76,19 @@ api_key = st.secrets['ANTHROPIC_API_KEY']
 client = Anthropic(api_key=api_key)
 
 # 페이지 설정 및 쿠키 컨트롤러 초기화
-controller = CookieController()
+cookie_manager = stx.CookieManager()
 time.sleep(0.1)
-RemoveEmptyElementContainer()
 
 if 'cookie_initialized' not in st.session_state:
     try:
-        user_cookie = controller.get('user_login')
+        user_cookie = cookie_manager.get('user_login')
         if user_cookie is not None:
+            print("cookie with", user_cookie)
             st.session_state.user_email = user_cookie.get("email")
             st.session_state.user_name = user_cookie.get("name")
             st.session_state.cookie_initialized = True
         else:
+            print("no cookie (likely first render)")
             # 쿠키 없음 (or 아직 초기 렌더링이라 못 읽음)
             # rerun을 통해 다음 렌더링에 쿠키를 읽을 수 있도록 유도
             st.rerun()
@@ -275,9 +277,18 @@ def login():
         st.session_state.user_name = user_name
         st.session_state.login_error = False
         user_data = {'email': email, 'name': user_name}
-        controller.set('user_login', user_data, max_age=604800,
-                       secure=True, same_site='Strict') #브라우저 쿠키에 인증 정보 저장
-        
+
+        # 쿠키 설정 (7일간 유지) - key 값을 다르게 설정
+        expires_at = datetime.datetime.now() + datetime.timedelta(days=7)
+        cookie_manager.set(
+            'user_data', 
+            user_data, 
+            expires_at=expires_at,
+            secure=True,
+            same_site='lax'
+        )
+        print("로그인 성공")
+
     else:
         st.session_state.login_error = True
         st.session_state.error_message = "등록되지 않은 이메일입니다."
@@ -286,7 +297,8 @@ def logout():
     st.session_state.user_email = None
     st.session_state.user_name = None
     st.session_state.email_input = ""
-    controller.remove('user_login')
+    if cookie_manager.get('user_data'):
+        cookie_manager.delete('user_data')
     st.rerun()  # 즉시 페이지 새로고침
 
 def claude_stream_generator(response_stream):
