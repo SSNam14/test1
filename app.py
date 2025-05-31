@@ -12,7 +12,7 @@ import json
 import datetime
 
 max_input_token = 40000
-cookie_delay = 1.5
+cookie_delay = 1.0
 
 # 페이지 설정
 st.set_page_config(page_title="Claude", page_icon="🤖")
