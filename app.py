@@ -1,8 +1,6 @@
 import streamlit as st
-import anthropic
 from anthropic import Anthropic
 import os
-import re
 import uuid
 import firebase_admin
 from firebase_admin import credentials, firestore
@@ -10,6 +8,8 @@ import extra_streamlit_components as stx
 import time
 import json
 import datetime
+import styles
+import text_code_parser
 
 max_input_token = 40000
 cookie_delay = 1.0
@@ -18,49 +18,9 @@ cookie_delay = 1.0
 st.set_page_config(page_title="Claude", page_icon="🤖")
 st.title("Claude")
 
-st.markdown("""
-<style>
-    /* 채팅 메시지 컨테이너 간격 줄이기 */
-    .stChatMessage {
-        padding-top: 2px !important;
-        padding-bottom: 2px !important;
-        margin-top: 2px !important;
-        margin-bottom: 2px !important;
-    }
-
-    /* 메시지 내용 간격 줄이기 */
-    .stChatMessage > div {
-        padding-top: 2px !important;
-        padding-bottom: 2px !important;
-    }
-
-    /* 메시지 안의 마크다운 간격 줄이기 */
-    .stMarkdown {
-        padding-top: 0px !important;
-        padding-bottom: 0px !important;
-        margin-top: 0px !important;
-        margin-bottom: 0px !important;
-    }
-    
-    /* 편집 버튼 스타일 */
-    .edit-button {
-        font-size: 0.8rem;
-        color: #888;
-        margin-left: 2px;
-        cursor: pointer;
-    }
-
-    /* 일반 요소들 세로 여백 줄이기 */
-    .element-container {
-        margin-bottom: 0.0rem;
-    }
-
-    /* 텍스트 입력 필드 여백 */
-    .stTextInput > div > div > input {
-        padding: 0.4rem;
-    }
-</style>
-""", unsafe_allow_html=True)
+styles.style_sidebar()
+styles.style_message()
+styles.style_buttons()
 
 # Firebase 초기화
 if not firebase_admin._apps:
@@ -71,10 +31,8 @@ if not firebase_admin._apps:
     firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-api_key = st.secrets['ANTHROPIC_API_KEY']
-
-
-client = Anthropic(api_key=api_key)
+#Antrophic 초기화
+client = Anthropic(api_key=st.secrets['ANTHROPIC_API_KEY'])
 
 # 페이지 설정 및 쿠키 컨트롤러 초기화
 cookie_manager = stx.CookieManager()
@@ -126,128 +84,6 @@ if 'user_name' not in st.session_state:
 
 if 'num_input_tokens' not in st.session_state:
     st.session_state.num_input_tokens = 0
-
-def escape_literal_newlines_fixed(code: str) -> str:
-    """
-    문자열 리터럴 내의 실제 개행문자를 \\n으로 이스케이프합니다.
-    """
-    def esc_string_literals(match):
-        literal = match.group(0)
-        # 실제 개행문자(아스키 10)를 문자열 \\n으로 변환
-        literal = literal.replace("\n", "\\n")
-        return literal
-    
-    # 따옴표로 둘러싸인 문자열 리터럴들을 찾아서 처리
-    # 삼중 따옴표, 단일/이중 따옴표 모두 처리
-    code = re.sub(r'""".*?"""', esc_string_literals, code, flags=re.DOTALL)
-    code = re.sub(r"'''.*?'''", esc_string_literals, code, flags=re.DOTALL)
-    code = re.sub(r'"(?:[^"\\]|\\.)*"', esc_string_literals, code)
-    code = re.sub(r"'(?:[^'\\]|\\.)*'", esc_string_literals, code)
-    
-    return code
-
-def is_code_line(line: str) -> bool:
-    stripped = line.strip()
-    
-    # 빈 줄은 컨텍스트에 따라 판단하도록 별도 처리
-    if not stripped:
-        return None  # 빈 줄은 컨텍스트로 판단
-        
-    if re.match(r'^[\(\)\[\]\{\}\s,]*$', stripped) and any(c in stripped for c in "(){}[]"):
-        return True        
-    
-    # 명확한 코드 패턴들
-    if (
-        bool(re.match(r"^(for|if|elif|else|while|def|class|try|except|finally|with|async\s+def|await|match|case|return|yield|raise|break|continue|pass|import|from|global|nonlocal|assert)\b", stripped))
-        or stripped.startswith("#")
-        or stripped.startswith("@")
-        or line.startswith(" ") or line.startswith("\t")  # 들여쓰기된 줄
-    ):
-        return True
-    
-    # 함수 호출 패턴 (더 엄격하게)
-    if bool(re.match(r"^[a-zA-Z_][a-zA-Z0-9_\.]*\s*\([^)]*\)\s*$", stripped)):
-        return True
-    
-    # 변수 할당 패턴 (더 엄격하게)
-    if bool(re.match(r"^[a-zA-Z_][a-zA-Z0-9_,\s]*\s*=\s*.+", stripped)):
-        return True
-    
-    # 괄호가 있지만 일반 문장일 가능성이 높은 경우들을 제외
-    if any(c in stripped for c in "(){}[]"):
-        # 문장 중간에 괄호가 있는 경우 (예: "이것은 (예시) 문장입니다") 제외
-        if (stripped.count('(') == stripped.count(')') and 
-            not stripped.startswith('(') and 
-            not stripped.endswith(')') and
-            not any(stripped.startswith(op) for op in ['if ', 'for ', 'while ', 'def ', 'class ']) and
-            not bool(re.match(r"^[a-zA-Z_][a-zA-Z0-9_\.]*\s*\(", stripped))):
-            return False
-        return True
-    
-    return False
-
-def render_mixed_content(content: str):
-    lines = content.splitlines()
-    current_block = []
-    current_type = None  # "code" or "text"
-    
-    def flush():
-        nonlocal current_block, current_type
-        if not current_block:
-            return
-        text = "\n".join(current_block)
-        if current_type == "code":
-            text = escape_literal_newlines_fixed(text)
-            st.code(text, language="python")
-        else:
-            st.markdown(f'<div style="white-space: pre-wrap;">{text}</div>', unsafe_allow_html=True)
-        current_block = []
-    
-    # 빈 줄 처리를 위한 컨텍스트 분석
-    processed_lines = []
-    for i, line in enumerate(lines):
-        line_type = is_code_line(line)
-        if line_type is None:  # 빈 줄인 경우
-            # 앞뒤 줄의 타입을 확인
-            prev_type = None
-            next_type = None
-            
-            # 이전 비어있지 않은 줄 찾기
-            for j in range(i-1, -1, -1):
-                prev_check = is_code_line(lines[j])
-                if prev_check is not None:
-                    prev_type = prev_check
-                    break
-            
-            # 다음 비어있지 않은 줄 찾기
-            for j in range(i+1, len(lines)):
-                next_check = is_code_line(lines[j])
-                if next_check is not None:
-                    next_type = next_check
-                    break
-            
-            # 앞뒤가 모두 코드이면 빈 줄도 코드로 처리
-            if prev_type is True and next_type is True:
-                line_type = True
-            else:
-                line_type = False
-        
-        processed_lines.append((line, line_type))
-    
-    # 블록 단위로 처리
-    for line, this_is_code in processed_lines:
-        new_type = "code" if this_is_code else "text"
-        
-        if current_type is None:
-            current_type = new_type
-        
-        if new_type != current_type:
-            flush()
-            current_type = new_type
-        
-        current_block.append(line)
-    
-    flush()
 
     
 # 사용자 인증 함수
@@ -497,10 +333,11 @@ if 'new_message_added' not in st.session_state:
     
 # 응답 전 응답 관련 설정
 with st.sidebar:
-    st.header("👤 사용자 로그인")
+    st.header(":material/account_circle: 사용자 로그인")
     
     if st.session_state.user_email: # 로그인된 상태
-        st.markdown(f'<p style="margin:0.2; line-height:2.5;">안녕하세요, {st.session_state.user_name}님! 👋</p>', unsafe_allow_html=True)
+        #st.markdown(f'<p style="margin:0.2; line-height:2.5;">안녕하세요, {st.session_state.user_name}님! 👋</p>', unsafe_allow_html=True)
+        st.markdown(f'안녕하세요, {st.session_state.user_name}님! 👋</p>', unsafe_allow_html=True)
         if st.button("로그아웃", key="logout_btn", use_container_width=True,):
             logout()
                 
@@ -515,7 +352,7 @@ with st.sidebar:
             st.error(st.session_state.error_message)
     
     
-    st.header("⚙️ 응답 설정")
+    st.header(":material/settings:  응답 설정")
     model = st.selectbox(
         "모델 선택",
         ["claude-sonnet-4-20250514", "claude-3-7-sonnet-20250219", "claude-opus-4-20250514", "claude-3-opus-20240229", ]
@@ -560,7 +397,7 @@ for i, message in enumerate(st.session_state.messages):
         if message["role"] == "user":
             # 편집 중인 메시지
             if st.session_state.editing_message == i:
-                edited_content = st.text_area("메시지 편집", message["content"], key=f"edit_{i}")
+                edited_content = st.text_area("메시지 편집", message["content"], height=min(680, max(68, 34 * (message["content"].count('\n') + 1))), key=f"edit_{i}")
                 col1, col2, col3 = st.columns([7.8, 1.1, 1.1])
                 with col1:
                     st.markdown("*이 메시지를 편집하면 이후의 대화 내용은 사라집니다*", unsafe_allow_html=True)
@@ -572,12 +409,13 @@ for i, message in enumerate(st.session_state.messages):
                         st.session_state.editing_message = None
                         st.rerun()
             else:
-                render_mixed_content(message["content"]) #규칙 기반 코드블록 인식 후 출력
+                st.markdown(text_code_parser.render_mixed_content(message["content"])) #규칙 기반 코드블록 인식 후 출력
+                
 
                 col1, col2 = st.columns([10, 1])
                 with col2:
                     # 모든 사용자 메시지에 편집 버튼 표시
-                    if st.button("✏️", key=f"edit_btn_{i}", help="이 메시지 편집"):
+                    if st.button("", key=f"edit_btn_{i}", help="이 메시지 편집", icon=":material/edit_square:"):
                         edit_message(i)
                         st.rerun()
         else:
@@ -686,11 +524,19 @@ if prompt:
 
 # 응답 후 히스토리 관리
 with st.sidebar:
+    st.markdown("""
+    <style>
+    div[data-testid="stTextAreaRootElement"]:has(textarea[aria-label="토큰 사용량"]) {
+        display: none;
+    }
+    </style>""", unsafe_allow_html=True)
+    _ = st.text_area("토큰 사용량", help=f"최대 사용량 ({int(max_input_token/1000)}K)에 도달 시 과거 대화부터 참조하지 않고 응답합니다.")
+    
     my_bar = st.progress(0, text='토큰 사용량')
     token_in_K = st.session_state.num_input_tokens/1000
     my_bar.progress(min(st.session_state.num_input_tokens/max_input_token, 1.), text=f'{token_in_K:.2f}K tokens as input, {token_in_K*0.003*1350:.1f}₩ per answer')
 
-    st.header("📖 대화 기록 관리")
+    st.header(":material/import_contacts: 대화 기록 관리")
 
     if st.button("대화 초기화", use_container_width=True):
         st.session_state.session_id = str(uuid.uuid4())
