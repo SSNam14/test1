@@ -27,14 +27,33 @@ def style_sidebar():
 def style_message():
     return st.markdown("""
     <style>
-    div[class*="stChatMessage st-emotion-cache"] h2 {
-        font-size: 1.4rem !important; /* # 레벨 마크다운 글자 크기 및 여백 조정 */
+    div[class*="stChatMessage st-emotion-cache"] h1 {
+        font-size: 1.9rem !important; /* # 레벨 마크다운 글자 크기 및 여백 조정 */
         padding-top: 0.3rem !important;
         padding-bottom: 0.2rem !important;
     }
+    div[class*="stChatMessage st-emotion-cache"] h2 {
+        font-size: 1.6rem !important; /* ## 레벨 마크다운 글자 크기 및 여백 조정 */
+        padding-top: 0.3rem !important;
+        padding-bottom: 0.2rem !important;
+    }
+    div[class*="stChatMessage st-emotion-cache"] h3 {
+        font-size: 1.4rem !important; /* ### 레벨 마크다운 글자 크기 및 여백 조정 */
+        padding-top: 0.3rem !important;
+        padding-bottom: 0.2rem !important;
+    }    
+    div[class*="stChatMessage st-emotion-cache"] h4 {
+        font-size: 1.2rem !important; /* #### 레벨 마크다운 글자 크기 및 여백 조정 */
+        padding-top: 0.3rem !important;
+        padding-bottom: 0.2rem !important;
+    }      
+    div[class*="stChatMessage st-emotion-cache"] p {
+        margin-bottom: 0.2rem !important; /* 일반 글자 줄바꿈 간격 */
+        margin-top: 0.2rem !important; 
+    }    
     div[class*="stChatMessage st-emotion-cache"] div[data-testid="stMarkdownPre"]:has(div[data-testid="stCode"]) { 
         margin-bottom: 0.2rem !important; /* 코드블록 위쪽과 일반 메세지 간 간격 */
-        margin-top: -0.8rem !important; /* 코드블록 아래쪽과 일반 메세지 간 간격(-1로 설정해야 실제 간격 0) */
+        margin-top: 0.2rem !important; /* 코드블록 아래쪽과 일반 메세지 간 간격(-1로 설정해야 실제 간격 0) */
     }
     div[class*="stChatMessage st-emotion-cache"] div[data-testid="stCode"] pre {
         padding: 0.3rem 2.4rem 0.3rem 0.3rem !important; /* 코드블록 안쪽과 실제 코드 글자 사이 간의 간격 */
@@ -55,7 +74,11 @@ def style_message():
         background: rgb(250, 250, 250) !important; 
         background-color: rgb(250, 250, 250) !important; 
     }
+    div[data-testid="stChatMessage"] div[class*="stVerticalBlock st-emotion-cache"] {
+        gap: 0rem !important; /*문단 간 간격*/
+    }
     </style>
+    
     """, unsafe_allow_html=True)
 
 def style_buttons():
