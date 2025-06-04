@@ -538,7 +538,7 @@ with st.sidebar:
 
     st.header(":material/import_contacts: 대화 기록 관리")
 
-    if st.button("대화 초기화", use_container_width=True):
+    if st.button("새 대화 시작하기", use_container_width=True):
         st.session_state.session_id = str(uuid.uuid4())
         st.session_state.messages = []
         st.rerun()
