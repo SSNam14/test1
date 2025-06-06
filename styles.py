@@ -77,6 +77,13 @@ def style_message():
     div[data-testid="stChatMessage"] div[class*="stVerticalBlock st-emotion-cache"] {
         gap: 0rem !important; /*문단 간 간격*/
     }
+
+    div[data-testid="stChatMessage"] button[data-testid="stBaseButton-secondary"][kind="secondary"] {
+        height: 1.8rem !important;
+        width: 1.8rem !important;
+        min-height: 1.8rem !important;  /* 원하는 높이로 수정 */
+
+    }
     </style>
     
     """, unsafe_allow_html=True)
