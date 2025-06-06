@@ -19,8 +19,8 @@ st.set_page_config(page_title="Claude", page_icon="🤖")
 st.title("Claude")
 
 styles.style_sidebar()
-styles.style_message()
 styles.style_buttons()
+styles.style_message()
 
 # Firebase 초기화
 if not firebase_admin._apps:
@@ -397,22 +397,24 @@ for i, message in enumerate(st.session_state.messages):
         if message["role"] == "user":
             # 편집 중인 메시지
             if st.session_state.editing_message == i:
+                height = min(680, max(68, 34 * (message["content"].count('\n') + 1)))
+                print(height)
                 edited_content = st.text_area("메시지 편집", message["content"], height=min(680, max(68, 34 * (message["content"].count('\n') + 1))), key=f"edit_{i}")
-                col1, col2, col3 = st.columns([7.8, 1.1, 1.1])
+                col1, col2, col3 = st.columns([15, 1, 1]) #CSS스타일 따라서 조절해야함. 현재 버튼 너비 1.8rem
                 with col1:
                     st.markdown("*이 메시지를 편집하면 이후의 대화 내용은 사라집니다*", unsafe_allow_html=True)
                 with col2:
-                    if st.button("저장", key=f"save_{i}"):
-                        submit_edit(i, edited_content)
-                with col3:
-                    if st.button("취소", key=f"cancel_{i}"):
+                    if st.button("", key=f"cancel_{i}", icon=":material/reply:", help="돌아가기"):
                         st.session_state.editing_message = None
                         st.rerun()
+                with col3:
+                    if st.button("", key=f"save_{i}", icon=":material/done_outline:", help="보내기"):
+                        submit_edit(i, edited_content)
             else:
                 st.markdown(text_code_parser.render_mixed_content(message["content"])) #규칙 기반 코드블록 인식 후 출력
                 
 
-                col1, col2 = st.columns([10, 1])
+                col1, col2 = st.columns([16, 1])
                 with col2:
                     # 모든 사용자 메시지에 편집 버튼 표시
                     if st.button("", key=f"edit_btn_{i}", help="이 메시지 편집", icon=":material/edit_square:"):
@@ -541,6 +543,7 @@ with st.sidebar:
     if st.button("새 대화 시작하기", use_container_width=True):
         st.session_state.session_id = str(uuid.uuid4())
         st.session_state.messages = []
+        st.session_state.num_input_tokens = 0
         st.rerun()
 
     st.markdown("#### 이전 대화")
