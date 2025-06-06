@@ -79,10 +79,9 @@ def style_message():
     }
 
     div[data-testid="stChatMessage"] button[data-testid="stBaseButton-secondary"][kind="secondary"] {
-        height: 1.8rem !important;
+        height: 1.8rem !important; /* 메세지 편집 관련 버튼 높이/너비 수정*/
         width: 1.8rem !important;
-        min-height: 1.8rem !important;  /* 원하는 높이로 수정 */
-
+        min-height: 1.8rem !important;  
     }
     </style>
     
@@ -130,6 +129,60 @@ def style_buttons():
     }
     </style>
     """, unsafe_allow_html=True)
+
+def style_navigation():
+    return st.markdown("""
+    <style>
+    .fixed-nav {
+        position: fixed;
+        top: 100px; /* 위로부터의 거리 */
+        right: 20px;  /* 오른쪽으로부터의 거리 */
+        width: auto;
+        height: 100vh; /* 컨테이너 세로 길이-창 높이의 100% */
+        background-color: transparent; 
+        border: none;
+        padding: 0px;
+        z-index: 999;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        align-items: center;
+        overflow-x: hidden; /* 가로 스크롤바 표시 */
+        overflow-y: auto; /* 세로 스크롤바 표시 */
+    }
+    .nav-button {
+        font-size: 16px;
+        width: 28px; 
+        height: 28px;
+        text-align: center;
+        background-color: transparent;
+        border: 1px solid #DEDCD5 !important;
+        border-radius: 4px !important;
+        
+        /* border: 1px; */
+        color: #444 !important;  /* !important 추가 */
+        text-decoration: none !important;  /* !important 추가 */
+        cursor: pointer;
+        transition: transform 0.1s ease, color 0.1s ease;
+    }
+    .nav-button:hover {
+        color: #000 !important;  /* !important 추가 */
+        background-color: #DEDCD5 !important;
+        transform-origin: center;
+        /* transform: scale(1.2); */
+    }
+    .nav-button:visited {
+        color: #444 !important;  /* 방문한 링크 색상도 설정 */
+    }
+    .nav-button:active {
+        color: #000 !important;  /* 클릭시 색상도 설정 */
+    }
+    .nav-button:link {
+        color: #444 !important;  /* 링크 기본 색상도 설정 */
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
 
 def style_highlighting():
     #임시로 엘리먼트 하이라이팅
