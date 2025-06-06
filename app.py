@@ -4,6 +4,7 @@ import os
 import uuid
 import firebase_admin
 from firebase_admin import credentials, firestore
+import streamlit.components.v1 as components
 import extra_streamlit_components as stx
 import time
 import json
@@ -21,6 +22,8 @@ st.title("Claude")
 styles.style_sidebar()
 styles.style_buttons()
 styles.style_message()
+styles.style_navigation()
+
 
 # Firebase 초기화
 if not firebase_admin._apps:
@@ -336,8 +339,7 @@ with st.sidebar:
     st.header(":material/account_circle: 사용자 로그인")
     
     if st.session_state.user_email: # 로그인된 상태
-        #st.markdown(f'<p style="margin:0.2; line-height:2.5;">안녕하세요, {st.session_state.user_name}님! 👋</p>', unsafe_allow_html=True)
-        st.markdown(f'안녕하세요, {st.session_state.user_name}님! 👋</p>', unsafe_allow_html=True)
+        st.markdown(f'안녕하세요, {st.session_state.user_name}님!</p>', unsafe_allow_html=True)
         if st.button("로그아웃", key="logout_btn", use_container_width=True,):
             logout()
                 
@@ -360,9 +362,6 @@ with st.sidebar:
     
     temperature = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7, step=0.1, 
                             help="값이 높을수록 창의적이고 다양한 답변, 낮을수록 일관되고 예측 가능한 답변")
-    
-    #max_tokens = st.slider("max_tokens", min_value=1, max_value=8128, value=2048, step=1, 
-    #                       help="응답의 최대 토큰 수 (대략 단어 수). 긴 답변이 필요하면 높게 설정")
 
     system_prompt = st.text_area("시스템 프롬프트", "간결하게", help="AI의 역할과 응답 스타일을 설정합니다")
 
@@ -391,10 +390,27 @@ def submit_edit(message_index, new_content):
     # 앱 재실행
     st.rerun()
 
-# 이전 메시지 표시
+
+nav_buttons = ""
+n_user_messages = 0
+for message in st.session_state.messages:
+    if message["role"] == "user":
+        nav_buttons += f'<a href="#msg-{n_user_messages}" class="nav-button">{n_user_messages+1}</a>'
+        n_user_messages += 1
+
+st.markdown(f"""
+<div class="fixed-nav">
+    {nav_buttons}
+</div>
+""", unsafe_allow_html=True)
+
+n_user_messages = 0
 for i, message in enumerate(st.session_state.messages):
     with st.chat_message(message["role"]):
         if message["role"] == "user":
+            st.markdown(f'<div id="msg-{n_user_messages}" style="scroll-margin-top: 70px;"></div>',  unsafe_allow_html=True)
+            n_user_messages+=1
+
             # 편집 중인 메시지
             if st.session_state.editing_message == i:
                 height = min(680, max(68, 34 * (message["content"].count('\n') + 1)))
@@ -410,7 +426,7 @@ for i, message in enumerate(st.session_state.messages):
                 with col3:
                     if st.button("", key=f"save_{i}", icon=":material/done_outline:", help="보내기"):
                         submit_edit(i, edited_content)
-            else:
+            else: #이미 완료된 메시지
                 st.markdown(text_code_parser.render_mixed_content(message["content"])) #규칙 기반 코드블록 인식 후 출력
                 
 
@@ -423,6 +439,8 @@ for i, message in enumerate(st.session_state.messages):
         else:
             # 어시스턴트 메시지는 편집 불가
             st.markdown(message["content"], unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
+            
 
 def truncate_messages(messages, max_tokens=max_input_token):
     """토큰 사용량 추산을 통해 효율적으로 대화 길이 제한"""
