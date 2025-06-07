@@ -90,12 +90,13 @@ def style_message():
 def style_buttons():
     return st.markdown("""
     <style>
-    /* 모든 버튼 기본 스타일 (배경색, 테두리, 색상 통일) */
-    button[data-testid="stBaseButton-secondary"] {
+    button[data-testid="stBaseButton-secondary"] {     /* 모든 버튼 기본 스타일 (배경색, 테두리, 색상 통일) */
+        justify-content: flex-start !important;
+
         background-color: #F0EEE6 !important;
         color: black !important;
-        border: 1px solid #DEDCD5 !important;
-        padding: 0.3em 0.8em !important;
+        border: 0px solid #DEDCD5 !important;
+        padding: 0.3em 0.3em !important;
         border-radius: 4px !important;
         transition: background-color 0.3s ease;
         display: flex;
@@ -103,28 +104,25 @@ def style_buttons():
         justify-content: center;  /* 기본은 가운데 정렬 */
         width: 100%;
     }
-    
-    /* 호버 스타일 */
-    button[data-testid="stBaseButton-secondary"]:hover {
+    button[data-testid="stBaseButton-secondary"]:hover {     /* 호버 스타일 */
         background-color: #DEDCD5 !important;
         color: black !important;
-        border: 1px solid #DEDCD5 !important;
+        border: 0px solid #DEDCD5 !important;
     }
-    
-    /* 🔸 리스트 버튼만 왼쪽 정렬: session 키 포함한 버튼 컨테이너 내부 */
-    div[class*="st-key-session_"] button[data-testid="stBaseButton-secondary"] {
+    div[class*="st-key-session_"] button[data-testid="stBaseButton-secondary"] { /* 리스트 버튼만 왼쪽 정렬: session 키 포함한 버튼 컨테이너 내부 */
         justify-content: flex-start !important;
         padding-left: 0.4em !important;
+        min-height: 0.5rem !important;
+        line-height: 1.2 !important; 
     }
-    
-    /* 🔸 JSON 버튼의 텍스트 중앙 정렬 보장 (오버라이드용) */
-    div.stDownloadButton button[data-testid="stBaseButton-secondary"] {
+    div[class*="st-key-session_"] button[data-testid="stBaseButton-secondary"] p { /* 대화 히스토리 버튼 글자 크기 조절*/
+        font-size: 14px !important;
+    }
+    div.stDownloadButton button[data-testid="stBaseButton-secondary"] { /* JSON 버튼의 텍스트 중앙 정렬 보장 (오버라이드용) */
         justify-content: center !important;
     }
-    
-    /* 🔸 로그아웃, 대화초기화 등 기본 버튼들도 중앙 정렬 */
     div.stElementContainer.st-key-logout_btn button[data-testid="stBaseButton-secondary"],
-    div.stElementContainer:not([class*="st-key-session_"]) button[data-testid="stBaseButton-secondary"]:has(p:contains("대화 초기화")) {
+    div.stElementContainer:not([class*="st-key-session_"]) button[data-testid="stBaseButton-secondary"]:has(p:contains("대화 초기화")) { /* 로그아웃, 대화초기화 등 기본 버튼들 중앙 정렬 */
         justify-content: center !important;
     }
     </style>
