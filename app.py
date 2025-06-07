@@ -181,133 +181,116 @@ def load_conversation_from_json(json_text):
     except:
         return None
 
+def get_preview_with_claude(messages):
+    user_messages = [m['content'] for m in messages if m.get('role') == 'user']
+    message_in_string = "\n".join(f"- {msg}" for msg in user_messages[:5]) 
+
+    prompt = f"""다음 대화의 제목을 한글 10자 이내 또는 영어 20자 이내로 작성하세요. 제목만 출력하고 다른 텍스트는 절대 포함하지 마세요. 
+               {message_in_string}
+              제목:"""
+    response = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=64,
+        temperature=0.2,
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.content[0].text.strip().split('\n')[0]
+
 # 대화 저장 함수 (수정)
 def save_conversation_to_db():
     if not st.session_state.user_email or not st.session_state.messages:
         return
 
     try:
-        # 현재 세션의 대화 저장 (session_id 사용)
-        db.collection('conversations').document(st.session_state.user_email).collection('sessions').document(st.session_state.session_id).set({
+        session_ref = db.collection('conversations') \
+                        .document(st.session_state.user_email) \
+                        .collection('sessions') \
+                        .document(st.session_state.session_id)
+
+        data = {
             'messages': st.session_state.messages,
             'updated_at': firestore.SERVER_TIMESTAMP,
             'session_id': st.session_state.session_id,
             'user_email': st.session_state.user_email,
             'user_name': st.session_state.user_name
-        })
+        }
+
+        # preview 조건: user 메시지가 2개 이상 & preview가 없을 때
+        user_messages = [m for m in st.session_state.messages if m.get("role") == "user"]
+        if len(user_messages) >= 2:
+            existing_doc = session_ref.get()
+            if not existing_doc.exists or 'preview' not in existing_doc.to_dict():
+                preview = get_preview_with_claude(st.session_state.messages)
+                data['preview'] = preview
+
+        session_ref.set(data, merge=True)
         return True
     except Exception as e:
         print(f"대화 저장 오류: {str(e)}")
         return False
+
 
 def load_conversation_from_db(session_id):
     if not st.session_state.user_email:
         return None
 
     try:
-        # 특정 세션의 대화 불러오기
-        doc = db.collection('conversations').document(st.session_state.user_email).collection('sessions').document(session_id).get()
+        doc_ref = db.collection('conversations') \
+                    .document(st.session_state.user_email) \
+                    .collection('sessions') \
+                    .document(session_id)
+        doc = doc_ref.get()
 
         if doc.exists:
             data = doc.to_dict()
-            # 불러온 세션의 ID로 현재 세션 ID 변경
             st.session_state.session_id = session_id
-            return data.get('messages', [])
+            messages = data.get('messages', [])
+
+            # preview가 없고 메시지가 2개 이상이면 생성
+            if 'preview' not in data and len(messages) >= 2:
+                preview = get_preview_with_claude(messages)
+                doc_ref.update({'preview': preview})
+
+            return messages
         else:
             st.warning(f"세션 ID {session_id}에 해당하는 대화를 찾을 수 없습니다.")
             return []
     except Exception as e:
         st.error(f"대화 불러오기 오류: {str(e)}")
         return []
-        
-def get_recent_sessions(limit=10):
+
+def get_recent_sessions(limit=40):
+    """최근 세션 목록을 가져오는 함수"""
     if not st.session_state.user_email:
         return []
-
-    # 디버깅 정보 초기화
-    debug_info = {
-        'current_session_id': st.session_state.session_id,
-        'user_email': st.session_state.user_email,
-        'all_sessions': []
-    }
-
+    
     try:
-        # 모든 세션 가져오기 (현재 세션 포함)
-        sessions_ref = db.collection('conversations').document(st.session_state.user_email).collection('sessions')
+        sessions_ref = db.collection('conversations') \
+                         .document(st.session_state.user_email) \
+                         .collection('sessions')
         query = sessions_ref.order_by('updated_at', direction=firestore.Query.DESCENDING).limit(limit)
-        sessions = list(query.stream())  # 리스트로 변환하여 세션 수 확인 가능
-
-        debug_info['total_sessions_found'] = len(sessions)
-
+        sessions = list(query.stream())
+        
         result = []
-        for idx, session in enumerate(sessions):
-            session_id = session.id  # 문서 ID 사용
+        for session in sessions:
+            session_id = session.id
             data = session.to_dict()
-
-            # 모든 세션 정보 저장 (디버깅용)
-            session_data = {
-                'session_id': session_id,
-                'is_current': session_id == st.session_state.session_id,
-                'updated_at': str(data.get('updated_at')),
-                'message_count': len(data.get('messages', [])),
-            }
-            debug_info['all_sessions'].append(session_data)
-
-            # 현재 세션 제외
-            if session_id == st.session_state.session_id:
-                continue
-
-            # 첫 번째 메시지 내용으로 미리보기 생성
-            preview = f"세션 {idx+1}"
-            messages = data.get('messages', [])
-
-            if messages:
-                # 사용자 메시지 찾기
-                user_messages = [msg for msg in messages if msg.get('role') == 'user']
-                if user_messages:
-                    first_msg = user_messages[0].get('content', '')
-                    preview = first_msg[:30] + ('...' if len(first_msg) > 30 else '')
-
-            # 타임스탬프 정보 추가
-            timestamp_info = ""
-            if data.get('updated_at'):
-                try:
-                    # Firestore 타임스탬프 처리 방법 수정
-                    timestamp = data.get('updated_at')
             
-                    # Firestore 타임스탬프 객체인 경우
-                    if hasattr(timestamp, 'seconds'):
-                        import datetime
-                        dt = datetime.datetime.fromtimestamp(timestamp.seconds)
-                        timestamp_info = f" ({dt.strftime('%m/%d %H:%M')})"
-                    # 이미 datetime 객체인 경우
-                    elif hasattr(timestamp, 'strftime'):
-                        timestamp_info = f" ({timestamp.strftime('%m/%d %H:%M')})"
-                    # 딕셔너리 형태인 경우 (JSON 변환 후)
-                    elif isinstance(timestamp, dict) and 'seconds' in timestamp:
-                        import datetime
-                        dt = datetime.datetime.fromtimestamp(timestamp['seconds'])
-                        timestamp_info = f" ({dt.strftime('%m/%d %H:%M')})"
-                    else:
-                        # 그 외의 경우 타입 정보 출력
-                        timestamp_info = f" ({type(timestamp).__name__})"
-                except Exception as e:
-                    timestamp_info = f" (날짜 변환 오류: {str(e)[:20]})"
-
-            # 고유한 ID를 포함한 미리보기 생성
-            display_text = f"{preview}{timestamp_info} [ID: {session_id[-6:]}]"
-
+            # preview 결정
+            preview = data.get('preview', "New Chat").strip().split('\n')[0]
+            
             result.append({
                 'session_id': session_id,
-                'preview': display_text,
+                'preview': preview,
                 'updated_at': data.get('updated_at')
             })
-
-        debug_info['result_sessions'] = len(result)
-        return result, debug_info
-
+        
+        return result
+        
     except Exception as e:
-        return [], {'error': str(e)}
+        st.error(f"세션 로딩 중 오류 발생: {str(e)}")
+        return []
+
 
 #토큰 카운팅
 def count_token(model, system, messages):
@@ -336,17 +319,23 @@ if 'new_message_added' not in st.session_state:
     
 # 응답 전 응답 관련 설정
 with st.sidebar:
+    if st.button(":material/edit_square: 새 채팅", use_container_width=True):
+        st.session_state.session_id = str(uuid.uuid4())
+        st.session_state.messages = []
+        st.session_state.num_input_tokens = 0
+        st.rerun()
+        
     st.header(":material/account_circle: 사용자 로그인")
     
     if st.session_state.user_email: # 로그인된 상태
         st.markdown(f'안녕하세요, {st.session_state.user_name}님!</p>', unsafe_allow_html=True)
-        if st.button("로그아웃", key="logout_btn", use_container_width=True,):
+        if st.button(":material/logout: 로그아웃", key="logout_btn", use_container_width=True):
             logout()
                 
     else: # 로그인되지 않은 상태
         st.text_input("이메일 주소", key="email_input", placeholder='abcd@gmail.com', label_visibility='collapsed')
         
-        if st.button("로그인", key="login_btn", use_container_width=True, help="로그인하시면 대화 기록이 저장됩니다."):
+        if st.button(":material/login: 로그인", key="login_btn", use_container_width=True, help="로그인하시면 대화 기록이 저장됩니다."):
             login()
             st.rerun()  # 로그인 후 즉시 페이지 새로고침
 
@@ -433,7 +422,7 @@ for i, message in enumerate(st.session_state.messages):
                 col1, col2 = st.columns([16, 1])
                 with col2:
                     # 모든 사용자 메시지에 편집 버튼 표시
-                    if st.button("", key=f"edit_btn_{i}", help="이 메시지 편집", icon=":material/edit_square:"):
+                    if st.button("", key=f"edit_btn_{i}", help="이 메시지 편집", icon=":material/edit:"):
                         edit_message(i)
                         st.rerun()
         else:
@@ -542,6 +531,82 @@ if prompt:
     # 앱 재실행하여 모든 메시지를 for 루프에서 표시하도록 함
     st.rerun()
 
+from datetime import timezone, timedelta
+
+def group_sessions_by_time(recent_sessions):
+    # 사용자의 시간대를 고려하는 것이 가장 좋지만,
+    # 여기서는 서버/DB 기준인 UTC로 일관성 있게 처리합니다.
+    # 한국 사용자 대상이라면 'Asia/Seoul'로 하는 것도 방법입니다.
+    # from zoneinfo import ZoneInfo
+    # tz = ZoneInfo("Asia/Seoul")
+    # now = datetime.datetime.now(tz)
+    
+    now = datetime.datetime.now(timezone.utc)
+    today_date = now.date()
+    yesterday_date = today_date - timedelta(days=1)
+    
+    # 그룹을 동적으로 생성하기 위해 defaultdict 사용
+    from collections import defaultdict
+    time_groups = defaultdict(list)
+
+    # 정렬된 순서를 유지하기 위한 그룹 키 리스트
+    group_order = ['오늘', '어제', '이전 7일', '이전 30일']
+    
+    for session in recent_sessions:
+        timestamp = session.get('updated_at')
+        if not timestamp:
+            time_groups['오래 전'].append(session)
+            continue
+
+        try:
+            # Firestore 타임스탬프 처리 (기존 로직 유지)
+            if hasattr(timestamp, 'seconds'):
+                dt = datetime.datetime.fromtimestamp(timestamp.seconds, tz=timezone.utc)
+            elif hasattr(timestamp, 'strftime'):
+                dt = timestamp
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+            elif isinstance(timestamp, dict) and 'seconds' in timestamp:
+                dt = datetime.datetime.fromtimestamp(timestamp['seconds'], tz=timezone.utc)
+            else:
+                raise ValueError("Unknown timestamp format")
+
+            session_date = dt.date()
+            days_diff = (today_date - session_date).days
+
+            group_key = ''
+            if days_diff == 0:
+                group_key = '오늘'
+            elif days_diff == 1:
+                group_key = '어제'
+            elif 1 < days_diff <= 7:
+                group_key = '이전 7일'
+            elif 7 < days_diff <= 30:
+                group_key = '이전 30일'
+            else:
+                # 30일이 넘어가면 'YYYY년 MM월' 형식으로 그룹화
+                group_key = dt.strftime('%Y년 %m월')
+            
+            time_groups[group_key].append(session)
+
+        except (ValueError, TypeError, OSError):
+            time_groups['오래 전'].append(session)
+
+    # 월별 그룹을 시간 순으로 정렬하기 위해 처리
+    final_ordered_groups = {}
+    
+    # 기본 순서 그룹 추가
+    for key in group_order:
+        if key in time_groups:
+            final_ordered_groups[key] = time_groups.pop(key)
+    
+    # 나머지 월별 그룹들을 시간 역순으로 정렬
+    monthly_keys = sorted(time_groups.keys(), reverse=True)
+    for key in monthly_keys:
+        final_ordered_groups[key] = time_groups[key]
+
+    return final_ordered_groups
+
 # 응답 후 히스토리 관리
 with st.sidebar:
     st.markdown("""
@@ -554,55 +619,44 @@ with st.sidebar:
     
     my_bar = st.progress(0, text='토큰 사용량')
     token_in_K = st.session_state.num_input_tokens/1000
-    my_bar.progress(min(st.session_state.num_input_tokens/max_input_token, 1.), text=f'{token_in_K:.2f}K tokens as input, {token_in_K*0.003*1350:.1f}₩ per answer')
+    my_bar.progress(min(st.session_state.num_input_tokens/max_input_token, 1.), text=f"{token_in_K:.2f}K input tokens ({token_in_K*0.003*1350:.1f}₩) per answer ")
 
     st.header(":material/import_contacts: 대화 기록 관리")
-
-    if st.button("새 대화 시작하기", use_container_width=True):
-        st.session_state.session_id = str(uuid.uuid4())
-        st.session_state.messages = []
-        st.session_state.num_input_tokens = 0
-        st.rerun()
-
-    st.markdown("#### 이전 대화")
+    
     if not st.session_state.user_email:
         st.write("이 기능을 사용하시려면 로그인해 주세요")
-
     else:
         # 최근 세션 목록 불러오기
-        recent_sessions, debug_info = get_recent_sessions()
-    
-        # 디버깅 정보 표시
-        #with st.expander("디버깅 정보 (문제 해결용)"):
-        #    st.json(debug_info)
-    
+        recent_sessions = get_recent_sessions()
+        
         if recent_sessions:
-            st.write(f"최근 대화 기록 ({len(recent_sessions)}개):")
-        
-            # 각 세션을 클릭 가능한 버튼으로 표시
-            for i, session in enumerate(recent_sessions):
-                # 미리보기 텍스트 더 짧게 만들기 (20자로 제한)
-                preview_text = session['preview']
-                if '(' in preview_text:  # 날짜 정보 앞부분만 유지
-                    preview_text = preview_text.split('(')[0].strip()
-        
-                # 너무 긴 경우 잘라내기
-                if len(preview_text) > 20:
-                    preview_text = preview_text[:20] + "..."
-        
-                # 버튼 텍스트 생성 (번호 + 짧은 미리보기)
-                button_text = f"{i+1}. {preview_text.replace('\n', ' ')}"
-        
-                # 클릭 가능한 버튼으로 만들기
-                button_key = f"session_{session['session_id']}"
-                if st.button(button_text, key=button_key, use_container_width=True):
-                    # 선택한 세션 불러오기
-                    loaded_messages = load_conversation_from_db(session['session_id'])
-                    if loaded_messages:
-                        _, st.session_state.num_input_tokens = truncate_messages(loaded_messages, 10000000) #대화 불러오자마자 계산
-                        st.session_state.messages = loaded_messages
-                        st.success("이전 대화를 불러왔습니다!")
-                        st.rerun()
+            # 현재 활성화된 세션 ID 가져오기
+            grouped_sessions = group_sessions_by_time(recent_sessions)
+
+            for group_name, sessions_in_group in grouped_sessions.items():
+                if sessions_in_group:  # 해당 그룹에 세션이 있을 때만 표시
+                    st.markdown(f"#### {group_name}")
+                    for i, session in enumerate(sessions_in_group):
+                        session_id = session['session_id']
+                        
+                        # 미리보기 텍스트 처리
+                        preview_text = session['preview']
+                        
+                        # 현재 세션인지 확인
+                        is_current_session = (session_id == st.session_state.session_id)
+                        
+                        # 버튼 생성 (현재 세션은 비활성화)
+                        button_key = f"session_{session_id}"
+                        if st.button(preview_text, key=button_key, use_container_width=True, disabled=is_current_session):
+                            # 선택한 세션 불러오기
+                            loaded_messages = load_conversation_from_db(session_id)
+                            if loaded_messages:
+                                truncated_messages, num_input_tokens = truncate_messages(loaded_messages)
+                                st.session_state.messages = truncated_messages
+                                st.session_state.num_input_tokens = num_input_tokens
+                                st.session_state.session_id = session_id  # 현재 세션 ID 업데이트
+                                st.success("이전 대화를 불러왔습니다!")
+                                st.rerun()
         else:
             st.write("이전 대화 기록이 없습니다.")
             st.write(f"현재 세션 ID: {st.session_state.session_id}")
