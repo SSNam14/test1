@@ -82,6 +82,7 @@ def style_message():
         height: 1.8rem !important; /* 메세지 편집 관련 버튼 높이/너비 수정*/
         width: 1.8rem !important;
         min-height: 1.8rem !important;  
+        background-color: transparent !important;        
     }
     </style>
     
