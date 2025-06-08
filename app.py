@@ -11,8 +11,9 @@ import json
 import datetime
 import styles
 import text_code_parser
+import chat
 
-max_input_token = 40000
+max_input_token = chat.max_input_token
 cookie_delay = 1.0
 
 # 페이지 설정
@@ -24,7 +25,6 @@ styles.style_buttons()
 styles.style_message()
 styles.style_navigation()
 
-
 # Firebase 초기화
 if not firebase_admin._apps:
     cred_dict = dict(st.secrets["firebase"])
@@ -33,9 +33,6 @@ if not firebase_admin._apps:
     cred = credentials.Certificate(cred_dict)
     firebase_admin.initialize_app(cred)
 db = firestore.client()
-
-#Antrophic 초기화
-client = Anthropic(api_key=st.secrets['ANTHROPIC_API_KEY'])
 
 # 페이지 설정 및 쿠키 컨트롤러 초기화
 cookie_manager = stx.CookieManager()
@@ -57,37 +54,6 @@ if 'cookie_initialized' not in st.session_state:
     except Exception as e:
         print(f"Cookie error: {e}")
         st.session_state.cookie_initialized = True
-
-# 세션 ID 관리 (추가)
-if 'session_id' not in st.session_state:
-    st.session_state.session_id = str(uuid.uuid4())
-
-# 세션 상태 초기화
-if 'messages' not in st.session_state:
-    st.session_state.messages = []
-
-# 편집 관련 상태 변수 초기화
-if 'editing_message' not in st.session_state:
-    st.session_state.editing_message = None
-
-# 새 응답 생성 중 상태 추적
-if 'generating_response' not in st.session_state:
-    st.session_state.generating_response = False
-
-# 새 메시지 추가 확인 플래그
-if 'new_message_added' not in st.session_state:
-    st.session_state.new_message_added = False
-
-# 로그인 상태 관리
-if 'user_email' not in st.session_state:
-    st.session_state.user_email = None
-
-if 'user_name' not in st.session_state:
-    st.session_state.user_name = None
-
-if 'num_input_tokens' not in st.session_state:
-    st.session_state.num_input_tokens = 0
-
     
 # 사용자 인증 함수
 def authenticate_user(email):
@@ -148,17 +114,6 @@ def logout():
     except Exception as e:
         print(f"쿠키 삭제 실패: {e}")
     st.rerun()
-
-def claude_stream_generator(response_stream):
-    """Claude API의 스트리밍 응답을 텍스트 제너레이터로 변환합니다."""
-    for chunk in response_stream:
-        if hasattr(chunk, 'type'):
-            # content_block_delta 이벤트 처리
-            if chunk.type == 'content_block_delta' and hasattr(chunk, 'delta') and hasattr(chunk.delta, 'text'):
-                yield chunk.delta.text
-            # content_block_start 이벤트 처리
-            elif chunk.type == 'content_block_start' and hasattr(chunk, 'content_block') and hasattr(chunk.content_block, 'text'):
-                yield chunk.content_block.text
              
 def save_conversation_as_json():
     from datetime import datetime
@@ -181,29 +136,30 @@ def load_conversation_from_json(json_text):
     except:
         return None
 
-def get_preview_with_claude(messages):
-    user_messages = [m['content'] for m in messages if m.get('role') == 'user']
-    message_in_string = "\n".join(f"- {msg}" for msg in user_messages[:5]) 
 
-    prompt = f"""다음 대화의 제목을 한글 10자 이내 또는 영어 20자 이내로 작성하세요. 제목만 출력하고 다른 텍스트는 절대 포함하지 마세요. 
-               {message_in_string}
-              제목:"""
-    response = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=64,
-        temperature=0.2,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return response.content[0].text.strip().split('\n')[0]
+def get_session_id_from_url():
+    """URL 파라미터에서 세션 ID를 가져옵니다."""
+    return st.query_params.get('session_id', None)
+
+def set_session_id_in_url(session_id):
+    """URL에 세션 ID를 설정합니다."""
+    st.query_params['session_id'] = session_id
+
 
 # 대화 저장 함수 (수정)
 def save_conversation_to_db():
-    if not st.session_state.user_email or not st.session_state.messages:
+    if not st.session_state.messages:
         return
-
+    if not st.session_state.user_email: 
+        user_email = 'anonymous'
+        user_name = 'anonymous'
+    else:
+        user_email = st.session_state.user_email
+        user_name = st.session_state.user_name
+    
     try:
         session_ref = db.collection('conversations') \
-                        .document(st.session_state.user_email) \
+                        .document(user_email) \
                         .collection('sessions') \
                         .document(st.session_state.session_id)
 
@@ -211,16 +167,16 @@ def save_conversation_to_db():
             'messages': st.session_state.messages,
             'updated_at': firestore.SERVER_TIMESTAMP,
             'session_id': st.session_state.session_id,
-            'user_email': st.session_state.user_email,
-            'user_name': st.session_state.user_name
+            'user_email': user_email,
+            'user_name': user_name
         }
 
-        # preview 조건: user 메시지가 2개 이상 & preview가 없을 때
+        # preview 조건: user 메시지가 2개 이상 & preview가 없을 때 & 로그인한 사용자에 한해서만
         user_messages = [m for m in st.session_state.messages if m.get("role") == "user"]
-        if len(user_messages) >= 2:
+        if (len(user_messages) >= 2) and ('user_email' in st.session_state): 
             existing_doc = session_ref.get()
             if not existing_doc.exists or 'preview' not in existing_doc.to_dict():
-                preview = get_preview_with_claude(st.session_state.messages)
+                preview = chat.get_preview_with_claude(st.session_state.messages)
                 data['preview'] = preview
 
         session_ref.set(data, merge=True)
@@ -231,12 +187,17 @@ def save_conversation_to_db():
 
 
 def load_conversation_from_db(session_id):
-    if not st.session_state.user_email:
-        return None
+    if 'user_email' not in st.session_state: 
+        user_email = 'anonymous'
+        user_name = 'anonymous'
+    else:
+        user_email = st.session_state.user_email
+        user_name = st.session_state.user_name        
+    print("loading from db (1)", user_email, user_name)        
 
     try:
         doc_ref = db.collection('conversations') \
-                    .document(st.session_state.user_email) \
+                    .document(user_email) \
                     .collection('sessions') \
                     .document(session_id)
         doc = doc_ref.get()
@@ -245,12 +206,13 @@ def load_conversation_from_db(session_id):
             data = doc.to_dict()
             st.session_state.session_id = session_id
             messages = data.get('messages', [])
+            set_session_id_in_url(session_id)
 
-            # preview가 없고 메시지가 2개 이상이면 생성
-            if 'preview' not in data and len(messages) >= 2:
-                preview = get_preview_with_claude(messages)
+            # preview가 없고 메시지가 2개 이상이고 로그인한 사용자에 한해서 생성
+            if 'preview' not in data and len(messages) >= 2 and 'user_email' in st.session_state:
+                preview = chat.get_preview_with_claude(messages)
                 doc_ref.update({'preview': preview})
-
+                
             return messages
         else:
             st.warning(f"세션 ID {session_id}에 해당하는 대화를 찾을 수 없습니다.")
@@ -290,20 +252,39 @@ def get_recent_sessions(limit=40):
     except Exception as e:
         st.error(f"세션 로딩 중 오류 발생: {str(e)}")
         return []
+    
+if 'session_id' not in st.session_state:
+    url_session_id = get_session_id_from_url()
+    
+    if url_session_id:
+        # URL에 session_id가 있으면 사용
+        st.session_state.session_id = url_session_id
+        print(f"Using session_id from URL: {url_session_id}")
+        st.session_state.messages = load_conversation_from_db(url_session_id)
+    else:
+        # URL에 없으면 새로 생성하고 URL에 설정
+        new_session_id = str(uuid.uuid4())
+        st.session_state.session_id = new_session_id
+        set_session_id_in_url(new_session_id)
+        print(f"Generated new session_id: {new_session_id}")        
 
-
-#토큰 카운팅
-def count_token(model, system, messages):
-    response = client.messages.count_tokens(
-        model=model,
-        system=system,
-        messages=messages,
-    )
-    return int(dict(response)['input_tokens'])
+# 세션 ID 관리 (추가)
+if 'session_id' not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
 
 # 세션 상태 초기화
 if 'messages' not in st.session_state:
     st.session_state.messages = []
+
+# 로그인 상태 관리
+if 'user_email' not in st.session_state:
+    st.session_state.user_email = None
+
+if 'user_name' not in st.session_state:
+    st.session_state.user_name = None
+
+if 'num_input_tokens' not in st.session_state:
+    st.session_state.num_input_tokens = 0
 
 # 편집 관련 상태 변수 초기화
 if 'editing_message' not in st.session_state:
@@ -431,81 +412,6 @@ for i, message in enumerate(st.session_state.messages):
 st.markdown('</div>', unsafe_allow_html=True)
             
 
-def truncate_messages(messages, max_tokens=max_input_token):
-    """토큰 사용량 추산을 통해 효율적으로 대화 길이 제한"""
-    if len(messages) == 0:
-        return messages
-
-    # 현재 전체 토큰 수 계산
-    current_tokens = count_token(model, system_prompt, messages)
-
-    # 토큰 수가 제한 이하면 전체 반환
-    if current_tokens <= max_tokens:
-        return messages, current_tokens
-
-    # 토큰 수가 초과하면 비례적으로 대화 수 줄이기
-    total_conversations = len(messages) // 2  # user+assistant 쌍의 개수
-    if total_conversations == 0:
-        return messages, current_tokens
-
-    # 유지할 대화 수 계산 (최소 1개는 보장)
-    keep_conversations = max(1, int(total_conversations * (max_tokens / current_tokens)))
-
-    # 최근 N개 대화만 유지 (user+assistant 쌍 단위)
-    keep_messages_count = keep_conversations * 2
-    truncated_messages = messages[-keep_messages_count:]
-    return truncated_messages, int(current_tokens * (max_tokens / current_tokens))
-
-
-#응답 생성 함수 - 중복을 방지하기 위해 함수로 분리
-def generate_claude_response():
-    # 메시지 기록 준비
-    messages = [
-        {"role": m["role"], "content": m["content"]}
-        for m in st.session_state.messages
-    ]
-    truncated_messages, num_input_tokens = truncate_messages(messages, max_tokens=max_input_token)
-    st.session_state.num_input_tokens = num_input_tokens
-    
-    try:
-        # API 호출
-        with st.spinner("Claude가 응답 중..."):
-            # 새로운 chat_message 컨테이너 생성
-            with st.chat_message("assistant"):
-                # 초기 텍스트를 빈 문자열로 설정
-                response_placeholder = st.empty()
-                response_placeholder.markdown("")
-                
-                response = client.messages.create(
-                    model=model,
-                    messages=truncated_messages,
-                    temperature=temperature,
-                    max_tokens=64000,
-                    system=system_prompt,
-                    stream=True
-                )
-                
-                # 응답 스트리밍
-                full_response = ""
-                for text in claude_stream_generator(response):
-                    full_response += text
-                    # 응답 업데이트
-                    response_placeholder.markdown(full_response)
-            
-                # 메시지 기록에 추가
-                st.session_state.messages.append({"role": "assistant", "content": full_response})
-                save_conversation_to_db()
-                
-        # 응답 생성 완료
-        st.session_state.generating_response = False
-        
-    except Exception as e:
-        if eval(str(e))['error']['type']=='overloaded_error':
-            st.error("이런, Anthropic 서버가 죽어있네요😞 잠시 후 다시 시도하거나 다른 모델을 사용해 주세요")
-        else:
-            st.error(f"오류가 발생했습니다: {str(e)}")
-        st.session_state.generating_response = False
-
 # 편집 후 또는 새 메시지에 대한 자동 응답 생성
 if ((st.session_state.generating_response or st.session_state.new_message_added) and 
     st.session_state.messages and 
@@ -515,7 +421,8 @@ if ((st.session_state.generating_response or st.session_state.new_message_added)
     st.session_state.generating_response = False
     st.session_state.new_message_added = False
     
-    generate_claude_response()
+    chat.generate_claude_response(model, temperature, system_prompt)
+    save_conversation_to_db()
 
 # 사용자 입력 받기
 prompt = st.chat_input("무엇이든 물어보세요!")
@@ -651,11 +558,10 @@ with st.sidebar:
                             # 선택한 세션 불러오기
                             loaded_messages = load_conversation_from_db(session_id)
                             if loaded_messages:
-                                truncated_messages, num_input_tokens = truncate_messages(loaded_messages)
+                                truncated_messages, num_input_tokens = chat.truncate_messages(loaded_messages, system_prompt)
                                 st.session_state.messages = truncated_messages
                                 st.session_state.num_input_tokens = num_input_tokens
                                 st.session_state.session_id = session_id  # 현재 세션 ID 업데이트
-                                st.success("이전 대화를 불러왔습니다!")
                                 st.rerun()
         else:
             st.write("이전 대화 기록이 없습니다.")
