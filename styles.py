@@ -81,8 +81,8 @@ def style_message():
     div[data-testid="stChatMessage"] button[data-testid="stBaseButton-secondary"][kind="secondary"] {
         height: 1.8rem !important; /* 메세지 편집 관련 버튼 높이/너비 수정*/
         width: 1.8rem !important;
-        min-height: 1.8rem !important;  
-        background-color: transparent !important;        
+        min-height: 1.8rem !important;
+        background-color: transparent !important;
     }
     </style>
     
@@ -125,6 +125,11 @@ def style_buttons():
     div.stElementContainer.st-key-logout_btn button[data-testid="stBaseButton-secondary"],
     div.stElementContainer:not([class*="st-key-session_"]) button[data-testid="stBaseButton-secondary"]:has(p:contains("대화 초기화")) { /* 로그아웃, 대화초기화 등 기본 버튼들 중앙 정렬 */
         justify-content: center !important;
+    }
+    button:disabled { /* 비활성화된 버튼을 hover와 동일한 스타일로 처리*/
+        background-color: #DEDCD5 !important;
+        color: black !important;
+        border: 0px solid #DEDCD5 !important;
     }
     </style>
     """, unsafe_allow_html=True)
