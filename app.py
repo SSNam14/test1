@@ -1,6 +1,9 @@
 import streamlit as st
 import uuid
 import streamlit.components.v1 as components
+import extra_streamlit_components as stx
+
+import time
 
 st.set_page_config(page_title="Claude", page_icon="🤖")
 st.title("Claude")
@@ -8,6 +11,7 @@ st.title("Claude")
 import chat, auth, styles, text_code_parser, history
 
 max_input_token = chat.max_input_token
+COOKIE_KEY = 'user_login'
 
 styles.style_sidebar()
 styles.style_buttons()
@@ -15,7 +19,9 @@ styles.style_message()
 styles.style_navigation()
 
 db = history.initialize_firebase()
-auth.cookie_initialization() #사용자 로그인 쿠키
+
+cookie_manager = stx.CookieManager() #main함수에서 정의되어야 함
+auth.initialize_cookie(cookie_manager, COOKIE_KEY)
     
 if 'session_id' not in st.session_state:
     url_session_id = st.query_params.get('session_id', None)
@@ -35,6 +41,7 @@ if 'session_id' not in st.session_state:
 # 세션 ID 관리 (추가)
 if 'session_id' not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
+print("현재 대화의 session id:", st.session_state.session_id)
 
 # 세션 상태 초기화
 if 'messages' not in st.session_state:
@@ -75,13 +82,13 @@ with st.sidebar:
     if st.session_state.user_email: # 로그인된 상태
         st.markdown(f'안녕하세요, {st.session_state.user_name}님!</p>', unsafe_allow_html=True)
         if st.button(":material/logout: 로그아웃", key="logout_btn", use_container_width=True):
-            auth.logout()
+            auth.logout(cookie_manager, COOKIE_KEY)
                 
     else: # 로그인되지 않은 상태
         st.text_input("이메일 주소", key="email_input", placeholder='abcd@gmail.com', label_visibility='collapsed')
         
         if st.button(":material/login: 로그인", key="login_btn", use_container_width=True, help="로그인하시면 대화 기록이 저장됩니다."):
-            auth.login(db)
+            auth.login(db, cookie_manager, COOKIE_KEY)
             st.rerun()  # 로그인 후 즉시 페이지 새로고침
 
         if 'login_error' in st.session_state and st.session_state.login_error:
