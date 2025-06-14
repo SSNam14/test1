@@ -26,9 +26,10 @@ def is_code_line(line: str) -> bool:
     # 빈 줄은 컨텍스트에 따라 판단하도록 별도 처리
     if not stripped:
         return None  # 빈 줄은 컨텍스트로 판단
-        
+
+    #괄호로만 이루어진 줄은 코드의 일부일 가능성 높음
     if re.match(r'^[\(\)\[\]\{\}\s,]*$', stripped) and any(c in stripped for c in "(){}[]"):
-        return True        
+        return True
     
     # 명확한 코드 패턴들
     if (
@@ -51,8 +52,6 @@ def is_code_line(line: str) -> bool:
     if any(c in stripped for c in "(){}[]"):
         # 문장 중간에 괄호가 있는 경우 (예: "이것은 (예시) 문장입니다") 제외
         if (stripped.count('(') == stripped.count(')') and 
-            not stripped.startswith('(') and 
-            not stripped.endswith(')') and
             not any(stripped.startswith(op) for op in ['if ', 'for ', 'while ', 'def ', 'class ']) and
             not bool(re.match(r"^[a-zA-Z_][a-zA-Z0-9_\.]*\s*\(", stripped))):
             return False
