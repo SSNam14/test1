@@ -4,11 +4,7 @@ import datetime
 import time
 
 # 페이지 설정 및 쿠키 컨트롤러 초기화
-cookie_manager = stx.CookieManager()
-
-COOKIE_KEY = 'user_login'
-
-def cookie_initialization():
+def initialize_cookie(cookie_manager, COOKIE_KEY):
     if 'cookie_initialized' not in st.session_state:
         try:
             user_cookie = cookie_manager.get(COOKIE_KEY)
@@ -38,7 +34,7 @@ def authenticate_user(db, email):
         return user_data.get('name')
     return None
 
-def login(db):
+def login(db, cookie_manager, COOKIE_KEY):
     email = st.session_state.email_input
 
     if not email or not email.strip():
@@ -73,7 +69,7 @@ def login(db):
         st.session_state.login_error = True
         st.session_state.error_message = "등록되지 않은 이메일입니다."
 
-def logout():
+def logout(cookie_manager, COOKIE_KEY):
     st.session_state.user_email = None
     st.session_state.user_name = None
     st.session_state.email_input = ""
