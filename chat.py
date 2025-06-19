@@ -66,18 +66,14 @@ def truncate_messages(messages, system_prompt, max_tokens=max_input_token):
     truncated_messages = messages[-keep_messages_count:]
     return truncated_messages, int(current_tokens * (max_tokens / current_tokens))
         
+
 def generate_claude_response(model, temperature, system_prompt):
-    # 메시지 기록 준비
     messages = [
         {"role": m["role"], "content": m["content"]}
         for m in st.session_state.messages
     ]
     truncated_messages, num_input_tokens = truncate_messages(messages, system_prompt, max_tokens=max_input_token)
     st.session_state.num_input_tokens = num_input_tokens
-    
-    # 응답 관련 변수들을 미리 초기화
-    full_response = ""
-    response_placeholder = None
     
     try:
         # API 호출
@@ -97,54 +93,33 @@ def generate_claude_response(model, temperature, system_prompt):
                     stream=True
                 )
                 
-                # 응답 스트리밍 (더 안전한 처리)
-                try:
-                    for text in claude_stream_generator(response):
-                        full_response += text
-                        # 응답 업데이트 (예외 처리 추가)
-                        try:
-                            response_placeholder.markdown(full_response)
-                        except Exception as display_error:
-                            # 화면 업데이트 실패해도 계속 진행
-                            print(f"Display update failed: {display_error}")
-                            continue
-                            
-                except Exception as stream_error:
-                    print(f"Streaming error: {stream_error}")
-                    # 스트리밍이 중단되어도 지금까지 받은 응답은 저장
-                    if full_response.strip():
-                        st.warning("응답 중 연결이 끊어졌지만, 부분 응답을 저장합니다.")
-                    else:
-                        raise stream_error  # 아무것도 받지 못했으면 예외 발생
-                
-                # 최종 응답 표시
-                if response_placeholder and full_response:
+                # 응답 스트리밍
+                full_response = ""
+                for text in claude_stream_generator(response):
+                    full_response += text
+                    # 응답 업데이트
                     response_placeholder.markdown(full_response)
             
-            # 메시지 기록에 추가 (응답이 있을 때만)
-            if full_response.strip():
+                # 메시지 기록에 추가
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
-                print(f"Response saved to history: {len(full_response)} characters")
-            else:
-                st.error("빈 응답을 받았습니다. 다시 시도해주세요.")
                 
         # 응답 생성 완료
         st.session_state.generating_response = False
-        
+
     except Exception as e:
-        # 예외 발생 시에도 부분 응답이 있으면 저장
-        if full_response.strip():
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
-            st.warning(f"오류가 발생했지만 부분 응답을 저장했습니다: {str(e)}")
-        else:
-            # 응답이 없으면 기존 오류 처리
-            if 'overloaded_error' in str(e):
+        # 재시도 불가능한 명확한 오류들
+        error_str = str(e)
+        if ('overloaded_error' in error_str or 
+            'rate_limit' in error_str or 
+            'authentication' in error_str or
+            'permission' in error_str):
+            if 'overloaded_error' in error_str:
                 st.error("이런, Anthropic 서버가 죽어있네요😞 잠시 후 다시 시도하거나 다른 모델을 사용해 주세요")
             else:
                 st.error(f"오류가 발생했습니다: {str(e)}")
+            st.session_state.generating_response = False
+        else:
+            # 재시도 가능한 오류 - 플래그 유지하고 조용히 실패
+            # 상위에서 재검증 로직이 재시도할 것임
+            pass
         
-        st.session_state.generating_response = False
-        
-        # 디버깅을 위한 로그
-        print(f"Exception in generate_claude_response: {str(e)}")
-        print(f"Full response at exception: '{full_response}'")        
