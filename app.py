@@ -178,10 +178,24 @@ if ((st.session_state.generating_response or st.session_state.new_message_added)
     st.session_state.messages[-1]["role"] == "user"):
     
     # 플래그 초기화
-    st.session_state.generating_response = False
+    #st.session_state.generating_response = False
     st.session_state.new_message_added = False
+
+    retries = 0
+    max_retries = 3
     
-    chat.generate_claude_response(model, temperature, system_prompt)
+    while (len(st.session_state.messages)>0 and 
+           st.session_state.messages[-1]["role"] != "assistant" and 
+           retries < max_retries):
+        
+        chat.generate_claude_response(model, temperature, system_prompt)
+        retries += 1
+        print(f"응답 재시도 {retries}회")
+    
+    if retries >= max_retries:
+        st.error("응답 생성에 실패했습니다. 다시 시도해주세요.")
+
+    st.session_state.generating_response = False
     history.save_conversation_to_db(db)
 
 # 사용자 입력 받기
